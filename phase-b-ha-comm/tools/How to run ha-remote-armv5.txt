@@ -1,0 +1,3 @@
+/mnt/storage/phase-a-lvgl/stockui-stop-hard.sh
+HA_HOST=192.168.1.8 HA_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI2ZDY0MTNjZTUyNTA0NzY5ODk4NjU4OTFlYzgxY2VjYyIsImlhdCI6MTc2NDk1NDA3MSwiZXhwIjoyMDgwMzE0MDcxfQ.dBTbdgSOiEUKGHRD3VRTMfz4P3KW5WVAZkQnd7ICfBA /mnt/storage/phase-a-lvgl/ha-remote-armv5
+

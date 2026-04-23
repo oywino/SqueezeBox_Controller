@@ -1,0 +1,41 @@
+# External toolchains and local build roots
+/buildroot/
+/output/
+
+# Release, backup, and packaging outputs
+/artifacts/
+/*.bundle
+/*.zip
+/*.tar
+
+# Secrets
+**/HA_LL_Token.txt
+**/.env
+
+# Snapshots and workspace-only archives
+**/snapshots/
+**/snapshots_hl_test/
+**/_rollback-*.tar
+
+# Generated binaries and logs
+**/*.log
+**/a.out
+**/ha-remote-armv5
+**/ha-remote-armv5_mono
+**/lvgl-hello-armv5
+**/fbblank-armv5
+**/fbinfo-armv5
+**/fbpanset-armv5
+**/fbpan-armv5
+**/fbtest-armv5
+**/jive-mgmt-ping-armv5
+
+# Scratch and duplicate files
+**/*.bak
+**/*.bak1
+**/* - Copy.*
+**/*_final.*
+
+# OS/editor noise
+Thumbs.db
+.DS_Store

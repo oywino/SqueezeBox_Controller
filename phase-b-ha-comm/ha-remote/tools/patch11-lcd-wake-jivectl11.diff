@@ -1,0 +1,28 @@
+--- main.c
++++ main.c
+@@ -50,10 +50,16 @@
+ static void keep_visible(lv_timer_t *t) {
+   (void)t;
+   lv_obj_invalidate(lv_scr_act());
+ }
+ 
++static void lcd_wake(void) {
++  /* Wake LCD panel even if stock UI (Jive) has put it to sleep. */
++  (void)system("/usr/bin/jivectl 11 >/dev/null 2>&1");
++}
++
+ int main(void) {
+   setbuf(stdout, NULL);
+ 
+   rng_state = (uint32_t)(ms_now() ^ (uint64_t)getpid());
+@@ -69,6 +75,8 @@
+ 
+   printf("LVGL fb0: %dx%d, bpp=%d, line_len=%d, yoffset=%d\n",
+          vinfo.xres, vinfo.yres, vinfo.bits_per_pixel, finfo.line_length, vinfo.yoffset);
+ 
++  lcd_wake();
++
+   lv_init();
+ 
+   static lv_color_t buf1[240 * 40];
+   static lv_disp_draw_buf_t draw_buf;

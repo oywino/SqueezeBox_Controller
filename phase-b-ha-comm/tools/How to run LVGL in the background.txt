@@ -1,0 +1,15 @@
+# (only if stock UI might be running)
+ /mnt/storage/phase-a-lvgl/stockui-stop-hard.sh
+
+cd /mnt/storage/phase-a-lvgl
+
+# start LVGL detached (backgound) so you immediately keep your prompt
+nohup ./lvgl-hello-armv5 </dev/null >/tmp/lvgl-hello.log 2>&1 &
+echo $! > /tmp/lvgl.pid
+
+# The PID is needed to be able to kill LVGL again
+echo "LVGL pid=$(cat /tmp/lvgl.pid)"
+ps | grep -E 'lvgl-hello|lvgl' | grep -v grep || true
+
+# Then kill it when needed
+kil <PID>

@@ -1,0 +1,11 @@
+
+tree -I 'node_modules|lvgl|' -L 4 -t -v --filesfirst
+
+
+
+{ find . -type d \( \( -name "node_modules" -o -name "buildroot"  -o -name "output"\) -printf "%p/\n" -prune -o -printf "%p/\n" \) ; find . -maxdepth 4 \( -type d \( -name "node_modules" -o -name "buildroot"  -o -name "output" \) -prune \) -o \( -type f -print \) ; } | tree --fromfile . -t -v --filesfirst -C -F > folder_layout.txt
+
+Use to convert from Ansi colors to HTML:
+ansi2html < folder_layout.txt > folder_layout.html
+
+Then open the html file, and delete the html header and footer and save it as folder_layout.md

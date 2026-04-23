@@ -1,0 +1,64 @@
+{
+  "version": "0.8.3-config-skeleton",
+  "home_assistant": {
+    "base_url": "http://homeassistant.local:8123",
+    "access_token": "<LONG_LIVED_ACCESS_TOKEN>"
+  },
+  "roscard": {
+    "enabled": true,
+    "schema_version": "1"
+  },
+  "cards": [
+    {
+      "roscard_type": "light",
+      "entity_id": "light.living_room",
+      "name": "Living Room",
+      "capabilities": {
+        "on_off": true,
+        "brightness": true,
+        "color_temp": true
+      }
+    },
+    {
+      "roscard_type": "media_player",
+      "entity_id": "media_player.tv",
+      "name": "TV",
+      "capabilities": {
+        "transport": [
+          "play_pause",
+          "stop",
+          "next",
+          "previous"
+        ],
+        "volume": true
+      }
+    },
+    {
+      "roscard_type": "climate",
+      "entity_id": "climate.hallway",
+      "name": "Hallway",
+      "capabilities": {
+        "target_temperature": true,
+        "hvac_modes": [
+          "heat",
+          "cool",
+          "auto"
+        ],
+        "presets": [
+          "home",
+          "away"
+        ]
+      }
+    }
+  ],
+  "input": {
+    "wheel": {
+      "long_press_ms": 600
+    },
+    "buttons": {
+      "back": "KEY_BACK",
+      "ok": "KEY_ENTER"
+    }
+  },
+  "created_utc": "2025-12-18T10:32:55Z"
+}

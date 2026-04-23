@@ -1,0 +1,11 @@
+Make a snapshot from /workspace/phase-b-ha-comm:
+
+1) Define previous and new snapshot names:
+PREV=v0.8.2-roscard-mapping-skeleton-verified
+SNAP=v0.8.3-roscard-decision-complete
+
+2) Create a hardlinked copy of the previous snapshot 
+cp -al snapshots/$PREV snapshots/$SNAP
+
+3) Overlay the current project state into the new snapshot # (excluding the snapshots/ dir itself)
+rsync -a --delete --exclude 'snapshots/' ./ snapshots/$SNAP/

@@ -1,0 +1,22 @@
+services:
+  ubuntu:
+    image: ubuntu:22.04
+    container_name: ubuntu
+    restart: "no"
+    tty: true
+    stdin_open: true
+
+    # 🧠 Mount your QNAP project directory (edit the left path!)
+    volumes:
+      - /share/Public/ubuntu:/workspace
+
+    # 🧰 Essential build environment
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=Europe/Oslo
+      - LANG=C.UTF-8
+
+    working_dir: /workspace
+
+    # Start interactive bash shell (no auto installs)
+    command: bash

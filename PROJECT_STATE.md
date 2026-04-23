@@ -1,0 +1,118 @@
+# PROJECT_STATE.md
+
+Purpose: single source of truth for **current** project status (what exists, what works, what’s next).  
+Do not duplicate detailed procedures from PROJECT_RULES.md or long history from CHANGELOG.md.
+
+---
+
+## Trail control phrases
+
+Use these exact markers in chat:
+
+- **TRAIL OFF: <topic>** — temporarily leave the main track for a focused sidetrack.
+- **TRAIL ON: main track** — return to the main track.
+
+Rules:
+
+- While TRAIL OFF, only work on that sidetrack goal.
+- When TRAIL ON, stop discussing the sidetrack unless it blocks the main track.
+- After a TRAIL ON that closes a milestone, update this file with the outcome.
+
+---
+
+## Hardware / environment
+
+- Device: Logitech Squeezebox Controller (ARMv5, Linux + BusyBox).
+- Tooling constraints: no `readlink`, `nl`, `chvt`, `strace`, `ftrace`.
+- Stock UI process: `/usr/bin/jive` (started by `/etc/init.d/squeezeplay`).
+
+---
+
+## Contract defined
+
+- `ha_ws.c` responsibility limited to one‑shot session orchestration (see PROJECT_RULES.md).
+
+---
+
+## Current status (artifact-synced 2026-04-23)
+
+- LVGL apps run on `/dev/fb0` and read input events.
+- Active binaries live under `/mnt/storage/phase-a-lvgl/`.
+- Hardware-verified runtime closure is recorded at `v0.8.0-locked-audited-closed`.
+- Step 8 document/adapter artifacts are recorded through `v0.8.3-roscard-decision-complete`.
+- Canonical active changelog: `CHANGELOG.md`. `CHANGELOG_PhaseB - contract 10 steps.md` is retained as historical contract-enforcement context.
+- Authoritative repository/worktree established at `U:\SqueezeBox_Controller`, backed by GitHub `oywino/SqueezeBox_Controller`.
+- Legacy root `U:\` is now treated as a one-way export target, not the source of truth.
+
+---
+
+## Phase B progress (main steps)
+
+- [x] **Step 1. Freeze Phase A baseline** — snapshot frozen.
+- [x] **Step 2. Runtime app skeleton** — build/deploy/run scripts verified.
+- [x] **Step 2b. UI cleanup (focus + cradle indicator)** — snapshots `v0.3.10`, `v0.3.11`.
+- [x] **Step 3. Launch/exit wrapper** — exit restores Jive (`v0.4.0`).
+- [x] **Step 4. Refactor into microservices** — exit screen logic transplanted (`v0.5.0`).
+- [x] **Step 5. Device HAL abstraction** — input decoupled (`v0.5.4`).
+- [x] **Step 6. One‑shot HA session** — lifecycle verified (`v0.6.2`).
+
+### Step 7. Contract enforcement continuation (relocation substeps 1–20)
+
+- Substeps 1–10 completed at `v0.7.0`.
+
+- Later Step 7 closure is represented in visible workspace artifacts `v0.7.1-fb-split-step-11`, `v0.7.2-status-bridge-final-step-15`, `v0.7.3-ui-hygiene-step-19`, with closure checkpoint `v0.8.0-locked-audited-closed`.
+
+- Includes framebuffer split, input split (no‑op), stock UI split (no‑op), main orchestration cleanup (no‑op), status bridge, hygiene passes, UI audit, hardware validation.
+
+- [x] **Step 8. RosCard integration decision (HACS)**
+  
+  - Criteria defined and weighted (docs/roscard_decision.md).
+  - Scoring stub prepared (docs/roscard_scoring.md).
+  - Evidence dir placeholder created (docs/roscard_evidence/).
+  - Adapter header defined (include/roscard_adapter.h).
+  - Mapping table skeleton created (docs/roscard_mapping_table.md).
+  - Config skeleton drafted (ha-remote/microservices/config/config.example.json).
+  - Decision recorded: Adopt RosCard upstream via thin adapter, fallback to fork if criteria fail.
+  - Artifact trail present: `v0.8.1-roscard-decision-criteria-verified`, `v0.8.2-roscard-mapping-skeleton-verified`, `v0.8.3-roscard-decision-complete`.
+
+- [ ] **Step 9. HA connection layer (WebSocket + LLAT)** — pending.
+
+- [ ] **Step 10. State cache + rate limiting** — pending.
+
+- [ ] **Step 11. Service call pipeline** — pending.
+
+- [ ] **Step 12. Minimal demo UI (PoC)** — pending.
+
+- [ ] **Step 13. Configuration loading** — pending.
+
+- [ ] **Step 14. Metrics + debug** — pending.
+
+- [ ] **Step 15. Package + deploy documentation** — pending.
+
+- [ ] **Step 16. Phase B deliverable** — pending.
+
+- [x] 
+
+---
+
+## Milestones (snapshots)
+
+- v0.3.10 — Focus border (2px yellow).
+- v0.3.11 — Cradle/charging indicator.
+- v0.4.0 — Exit restores Jive.
+- v0.5.0 — Refactoring into modules.
+- v0.5.4 — HAL input decoupled.
+- v0.6.1 — ha_config parser verified.
+- v0.6.2 — One‑shot HA WS session.
+- v0.7.0 — Contract enforcement complete.
+- v0.7.1 — Framebuffer split.
+- v0.7.2 — Status bridge final.
+- v0.7.3 — UI hygiene pass.
+- v0.8.0 — Locked, audited, closed Step 7 checkpoint.
+- v0.8.1 — RosCard decision criteria defined.
+- v0.8.2 — RosCard mapping skeleton created.
+- v0.8.3 — RosCard decision artifacts completed.
+
+---
+
+## STATE entry

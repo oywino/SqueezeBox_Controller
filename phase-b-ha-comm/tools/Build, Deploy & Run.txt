@@ -1,0 +1,28 @@
+LVGL 8.3.11
+
+From Ubuntu:
+cd /workspace/phase-b-ha-comm/ha-remote
+(./build.sh)
+
+...or with the modularized version:
+./build_modules.sh
+
+Then, make sure the Squeezebox is online and that remote connection is allowed and that LVGL isn't currently running:
+(because if LVGL is running, the file /mnt/storage/phase-a-lvgl/ha-remote-armv5 i blocked and the deploy fails)
+cd /workspace/phase-b-ha-comm/ha-remote
+./deploy_sb_a.sh
+
+Either run the file in the background (detached) from ubuntu....
+cd /workspace/phase-b-ha-comm/ha-remote
+./run_sb_a_detached.sh
+echo "rc=$?"
+
+... or run the file from the SB SSH directly:
+cd /mnt/storage/phase-a-lvgl
+./stockui-stop-hard.sh
+HA_HOST=192.168.1.8 HA_TOKEN="$(cat /mnt/storage/phase-a-lvgl/HA_LL_Token.txt 2>/dev/null || true)" /mnt/storage/phase-a-lvgl/ha-remote-armv5
+
+If needed, the Jive can be manually restarted with:
+kill $(cat /var/run/squeezeplay.pid)
+rm -f /var/run/squeezeplay.pid
+
