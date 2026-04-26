@@ -23,6 +23,25 @@ Prove a stable end-to-end control loop:
 **Device UI ↔ Home Assistant live states ↔ Home Assistant service calls**  
 without watchdog-triggered reboots and with a clean restore path to stock UI.
 
+## Phase B MVP design target
+
+Prove one narrow remote-control loop:
+
+```text
+Squeezebox UI -> HA live state -> user action -> HA service call -> visible result
+```
+
+The Squeezebox should behave as a small dedicated HA remote, not a dashboard browser and not a full Astrion/Unfolded Circle clone.
+
+MVP card set:
+
+- Light
+- Cover
+- Switch
+- Media Player
+
+Climate is deferred. Emergency Exit remains available as a recovery path, not as normal navigation.
+
 ## Exit criteria (Phase B done)
 
 - Reliable start/stop that does not trigger the watchdog
@@ -93,7 +112,7 @@ without watchdog-triggered reboots and with a clean restore path to stock UI.
   Wire demo card actions to concrete HA services; success/error feedback; basic retries.
 
 - [ ] **Step 12. Minimal demo UI (“one screen per card type” PoC)**  
-  Start with Light, Media Player, Climate; wheel navigation; push/long-push actions; verify end-to-end loop.
+  Start with Light, Cover, Switch, and Media Player; wheel navigation; push/long-push actions; verify end-to-end loop.
 
 - [ ] **Step 13. Configuration loading**  
   Load small config for entity IDs + layout; allow reload on startup.

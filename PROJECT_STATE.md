@@ -40,6 +40,9 @@ Rules:
 - Active binaries live under `/mnt/storage/phase-a-lvgl/`.
 - Hardware-verified runtime closure is recorded at `v0.8.0-locked-audited-closed`.
 - Step 8 document/adapter artifacts are recorded through `v0.8.3-roscard-decision-complete`.
+- Phase B MVP target is approved: prove `Squeezebox UI -> HA live state -> user action -> HA service call -> visible result`.
+- Phase B MVP card set is Light, Cover, Switch, and Media Player. Climate is deferred.
+- `phase-b-ha-comm/ha-remote/microservices/config/config.example.json` now matches the current parser fields for the MVP card set.
 - Canonical active changelog: `CHANGELOG.md`. `CHANGELOG_PhaseB - contract 10 steps.md` is retained as historical contract-enforcement context.
 - Authoritative repository/worktree established at `\\NASF67175\Public\ubuntu\SqueezeBox_Controller`, backed by GitHub `oywino/SqueezeBox_Controller`.
 - Ubuntu container path is `/workspace/SqueezeBox_Controller`.
@@ -114,6 +117,7 @@ Rules:
 - v0.8.1 — RosCard decision criteria defined.
 - v0.8.2 — RosCard mapping skeleton created.
 - v0.8.3 — RosCard decision artifacts completed.
+- v0.8.7 — Phase B MVP config aligned to Light, Cover, Switch, Media Player.
 
 ---
 

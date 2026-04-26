@@ -1,5 +1,5 @@
 {
-  "version": "0.8.3-config-skeleton",
+  "version": "0.8.7-phase-b-mvp-config",
   "home_assistant": {
     "base_url": "http://homeassistant.local:8123",
     "access_token": "<LONG_LIVED_ACCESS_TOKEN>"
@@ -10,44 +10,61 @@
   },
   "cards": [
     {
-      "roscard_type": "light",
+      "type": "light",
       "entity_id": "light.living_room",
-      "name": "Living Room",
-      "capabilities": {
-        "on_off": true,
-        "brightness": true,
-        "color_temp": true
+      "title": "Living Room",
+      "actions": {
+        "primary": {
+          "service": "light.toggle",
+          "data": {
+            "entity_id": "light.living_room"
+          }
+        }
       }
     },
     {
-      "roscard_type": "media_player",
+      "type": "cover",
+      "entity_id": "cover.living_room",
+      "title": "Living Cover",
+      "actions": {
+        "primary": {
+          "service": "cover.open_cover",
+          "data": {
+            "entity_id": "cover.living_room"
+          }
+        },
+        "secondary": {
+          "service": "cover.stop_cover",
+          "data": {
+            "entity_id": "cover.living_room"
+          }
+        }
+      }
+    },
+    {
+      "type": "switch",
+      "entity_id": "switch.living_room",
+      "title": "Living Switch",
+      "actions": {
+        "primary": {
+          "service": "switch.toggle",
+          "data": {
+            "entity_id": "switch.living_room"
+          }
+        }
+      }
+    },
+    {
+      "type": "media_player",
       "entity_id": "media_player.tv",
-      "name": "TV",
-      "capabilities": {
-        "transport": [
-          "play_pause",
-          "stop",
-          "next",
-          "previous"
-        ],
-        "volume": true
-      }
-    },
-    {
-      "roscard_type": "climate",
-      "entity_id": "climate.hallway",
-      "name": "Hallway",
-      "capabilities": {
-        "target_temperature": true,
-        "hvac_modes": [
-          "heat",
-          "cool",
-          "auto"
-        ],
-        "presets": [
-          "home",
-          "away"
-        ]
+      "title": "TV",
+      "actions": {
+        "primary": {
+          "service": "media_player.media_play_pause",
+          "data": {
+            "entity_id": "media_player.tv"
+          }
+        }
       }
     }
   ],

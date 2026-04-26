@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.7-phase-b-mvp-config — 2026-04-26
+
+- Recorded the approved Phase B MVP direction: prove `Squeezebox UI -> HA live state -> user action -> HA service call -> visible result`.
+- Updated `config.example.json` to use the current parser fields (`type`, `title`, `actions`) instead of the earlier RosCard skeleton-only fields.
+- Dropped Climate from the Phase B MVP card list.
+- Set the Phase B MVP example cards to Light, Cover, Switch, and Media Player.
+- No runtime code changes and no Squeezebox deploy/run.
+
+---
+
 ## v0.8.6-tools-deploy-docs-normalized — 2026-04-26
 
 - Added canonical `phase-b-ha-comm/tools/README.md` for current build/deploy/test operations.
