@@ -43,13 +43,13 @@ This produces a `git bundle` file that can recreate the repository with tags and
 Restore from a bundle with:
 
 ```powershell
-powershell -File .\scripts\restore_from_bundle.ps1 -BundlePath .\artifacts\backups\repo.bundle -TargetDir U:\restore-test
+powershell -File .\scripts\restore_from_bundle.ps1 -BundlePath .\artifacts\backups\repo.bundle -TargetDir .\restore-test
 ```
 
 Optionally check out a milestone tag:
 
 ```powershell
-powershell -File .\scripts\restore_from_bundle.ps1 -BundlePath .\artifacts\backups\repo.bundle -TargetDir U:\restore-test -Ref v0.9.0-step9-llat-verified
+powershell -File .\scripts\restore_from_bundle.ps1 -BundlePath .\artifacts\backups\repo.bundle -TargetDir .\restore-test -Ref v0.9.0-step9-llat-verified
 ```
 
 ## GitHub Release Flow

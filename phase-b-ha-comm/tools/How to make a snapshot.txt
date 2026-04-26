@@ -1,11 +1,9 @@
-Make a snapshot from /workspace/phase-b-ha-comm:
+Superseded by README.md and docs/release-process.md.
 
-1) Define previous and new snapshot names:
-PREV=v0.8.2-roscard-mapping-skeleton-verified
-SNAP=v0.8.3-roscard-decision-complete
+Current project path inside the Ubuntu container:
+/workspace/SqueezeBox_Controller
 
-2) Create a hardlinked copy of the previous snapshot 
-cp -al snapshots/$PREV snapshots/$SNAP
-
-3) Overlay the current project state into the new snapshot # (excluding the snapshots/ dir itself)
-rsync -a --delete --exclude 'snapshots/' ./ snapshots/$SNAP/
+Current policy:
+- Create snapshots/tags only after successful hardware verification.
+- Keep snapshots and release archives out of normal Git history.
+- Use annotated Git tags for verified milestones.

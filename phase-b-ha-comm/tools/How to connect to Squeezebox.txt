@@ -1,3 +1,8 @@
-From Command Prompt:
+Superseded by README.md.
 
-ssh -oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-rsa -c aes128-cbc -oMACs=+hmac-sha1 root@192.168.1.66
+Use phase-b-ha-comm/tools/README.md as the canonical Squeezebox SSH login guide.
+
+Current verified controller:
+root@192.168.1.65
+
+The IP is DHCP-assigned. Confirm it on the Jive Remote Login screen before every login/deploy attempt.

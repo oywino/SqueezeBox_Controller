@@ -37,6 +37,6 @@
 
 ## Sync Boundary
 
-The repository is authoritative. Legacy `U:\` content is refreshed from this repository by `scripts/export_to_legacy_workspace.ps1`.
+The repository is authoritative at `\\NASF67175\Public\ubuntu\SqueezeBox_Controller`.
 
-`scripts/check_drift.ps1` verifies whether the exported legacy paths still match the repository baseline.
+Legacy drive-letter workspace usage is retired for current operations. Legacy sync scripts are retained for historical recovery only and should not be part of the normal build/deploy/test workflow.

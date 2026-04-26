@@ -2,6 +2,18 @@
 
 ---
 
+## v0.8.6-tools-deploy-docs-normalized — 2026-04-26
+
+- Added canonical `phase-b-ha-comm/tools/README.md` for current build/deploy/test operations.
+- Documented verified NAS access, Ubuntu container entry, Squeezebox SSH procedure, current controller `192.168.1.65`, and detached runtime test result.
+- Removed obsolete current-operation references to legacy drive-letter workspace paths and old Squeezebox IP examples from active docs.
+- Sanitized legacy run note by removing the embedded Home Assistant long-lived access token.
+- Marked superseded tools notes as secondary to the canonical tools README.
+- Updated Phase B deploy/run script defaults to the verified current Squeezebox controller `192.168.1.65` and expanded legacy SSH options.
+- No firmware/runtime code changes; documentation and operational script normalization only.
+
+---
+
 ## v0.8.5-authoritative-repo-bootstrap — 2026-04-23
 
 - Bootstrapped authoritative repository worktree at `U:\SqueezeBox_Controller` for GitHub `oywino/SqueezeBox_Controller`.

@@ -16,9 +16,13 @@ These rules override chat memory. If there is any conflict, this file wins.
 - No new tools/packages installed on Squeezebox unless mandatory.
 - Avoid heavy/continuous activity that drains battery (prefer short WS sessions; reconnect on activity).
 
-## Squeezebox file transfer (always use this)
+## Squeezebox file transfer
 
-Use this exact `scp` form (legacy-compatible):
+Before every Squeezebox SSH/SCP attempt, confirm with the user that the controller is powered on, awake, connected to WiFi, and has SSH enabled.
+
+Use the current procedure in `phase-b-ha-comm/tools/README.md`. The currently verified controller is `root@192.168.1.65`, but the address is DHCP-assigned and must be confirmed from the Jive Remote Login screen before deploy/run.
+
+For raw OpenSSH/SCP clients, the Squeezebox requires legacy-compatible options:
 
 scp -O \
   -c aes128-cbc \
@@ -27,7 +31,7 @@ scp -O \
   -oPubkeyAcceptedAlgorithms=+ssh-rsa \
   -oMACs=+hmac-sha1 \
   ha-remote-armv5 \
-  root@192.168.1.94:/mnt/storage/phase-a-lvgl/
+  root@<SQUEEZEBOX_IP>:/mnt/storage/phase-a-lvgl/
 
 ## Snapshot procedure (mandatory after “Verified”)
 

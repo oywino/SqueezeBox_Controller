@@ -12,9 +12,10 @@
 ## Repository Control
 
 - Authoritative repository: GitHub `oywino/SqueezeBox_Controller`
-- Authoritative local worktree: `U:\SqueezeBox_Controller`
-- Legacy `U:\` workspace remains export-only and is refreshed from the repo via `scripts/export_to_legacy_workspace.ps1`
-- External Buildroot roots (`U:\buildroot`, `U:\output`) remain environment dependencies and are not tracked in this repo
+- Authoritative local worktree: `\\NASF67175\Public\ubuntu\SqueezeBox_Controller`
+- Ubuntu container path: `/workspace/SqueezeBox_Controller`
+- Legacy drive-letter workspace usage is retired for current operations
+- External Buildroot roots (`/workspace/buildroot`, `/workspace/output`) remain environment dependencies and are not tracked in this repo
 
 ## Phase B objective
 

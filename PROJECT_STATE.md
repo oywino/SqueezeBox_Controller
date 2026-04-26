@@ -34,15 +34,17 @@ Rules:
 
 ---
 
-## Current status (artifact-synced 2026-04-23)
+## Current status (artifact-synced 2026-04-26)
 
 - LVGL apps run on `/dev/fb0` and read input events.
 - Active binaries live under `/mnt/storage/phase-a-lvgl/`.
 - Hardware-verified runtime closure is recorded at `v0.8.0-locked-audited-closed`.
 - Step 8 document/adapter artifacts are recorded through `v0.8.3-roscard-decision-complete`.
 - Canonical active changelog: `CHANGELOG.md`. `CHANGELOG_PhaseB - contract 10 steps.md` is retained as historical contract-enforcement context.
-- Authoritative repository/worktree established at `U:\SqueezeBox_Controller`, backed by GitHub `oywino/SqueezeBox_Controller`.
-- Legacy root `U:\` is now treated as a one-way export target, not the source of truth.
+- Authoritative repository/worktree established at `\\NASF67175\Public\ubuntu\SqueezeBox_Controller`, backed by GitHub `oywino/SqueezeBox_Controller`.
+- Ubuntu container path is `/workspace/SqueezeBox_Controller`.
+- Legacy drive-letter workspace usage is retired for current operations.
+- Runtime/deploy procedure for current Squeezebox `192.168.1.65` is documented in `phase-b-ha-comm/tools/README.md`.
 
 ---
 

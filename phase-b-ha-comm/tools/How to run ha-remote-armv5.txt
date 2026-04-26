@@ -1,3 +1,9 @@
+Superseded by README.md.
+
+Do not store HA long-lived access tokens in documentation.
+
+Canonical runtime pattern on the Squeezebox:
+
 /mnt/storage/phase-a-lvgl/stockui-stop-hard.sh
-HA_HOST=192.168.1.8 HA_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI2ZDY0MTNjZTUyNTA0NzY5ODk4NjU4OTFlYzgxY2VjYyIsImlhdCI6MTc2NDk1NDA3MSwiZXhwIjoyMDgwMzE0MDcxfQ.dBTbdgSOiEUKGHRD3VRTMfz4P3KW5WVAZkQnd7ICfBA /mnt/storage/phase-a-lvgl/ha-remote-armv5
+HA_HOST=<HOME_ASSISTANT_IP> HA_TOKEN="$(cat /mnt/storage/phase-a-lvgl/HA_LL_Token.txt 2>/dev/null || true)" /mnt/storage/phase-a-lvgl/ha-remote-armv5
 

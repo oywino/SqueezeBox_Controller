@@ -2,10 +2,11 @@
 
 ## Canonical Local Paths
 
-- Repository worktree: `U:\SqueezeBox_Controller`
-- Legacy workspace root: `U:\`
-- External Buildroot checkout: `U:\buildroot`
-- External Buildroot output/toolchain: `U:\output`
+- Repository worktree: `\\NASF67175\Public\ubuntu\SqueezeBox_Controller`
+- Ubuntu container repository path: `/workspace/SqueezeBox_Controller`
+- External Buildroot checkout: `/workspace/buildroot`
+- External Buildroot output/toolchain: `/workspace/output`
+- Legacy drive-letter workspace usage is retired for current operations
 
 ## Container Model
 
@@ -30,7 +31,7 @@ The following stay outside the repo and are treated as environment prerequisites
 
 ## Recommended Workflow
 
-1. Work in `U:\SqueezeBox_Controller`.
+1. Work in `\\NASF67175\Public\ubuntu\SqueezeBox_Controller`.
 2. Build from the repository worktree.
-3. Export repository files to the legacy workspace only when operational scripts still depend on `U:\`.
+3. Use `/workspace/SqueezeBox_Controller` inside the Ubuntu container.
 4. Keep milestone binaries and snapshot archives as release assets or NAS archives, not as tracked repository files.

@@ -1,13 +1,13 @@
 #!/bin/sh
 set -eu
 
-SB_A_HOST="${SB_A_HOST:-root@192.168.1.94}"
+SB_A_HOST="${SB_A_HOST:-root@192.168.1.65}"
 REMOTE_DIR="${REMOTE_DIR:-/mnt/storage/phase-a-lvgl}"
 BIN_NAME="${BIN_NAME:-ha-remote-armv5}"
 HA_HOST="${HA_HOST:-192.168.1.8}"
 
 # Legacy SSH requirements for SB_A
-SSH_OPTS="${SSH_OPTS:--oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-rsa -oCiphers=aes128-cbc}"
+SSH_OPTS="${SSH_OPTS:--oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedAlgorithms=+ssh-rsa -oCiphers=aes128-cbc -oMACs=+hmac-sha1}"
 
 ssh $SSH_OPTS "$SB_A_HOST" "set -eu
 REMOTE_DIR='$REMOTE_DIR'
