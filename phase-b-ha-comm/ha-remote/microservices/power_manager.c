@@ -1,7 +1,7 @@
 #include "power_manager.h"
 
 #include "fb.h"
-#include "hal.h"
+#include "status_cache.h"
 
 #define PM_BAT_SLEEP_MS (30ULL * 1000ULL)
 #define PM_AC_SLEEP_MS  (300ULL * 1000ULL)
@@ -35,7 +35,7 @@ void power_manager_tick(uint64_t now_ms)
     struct hal_power_state st;
     int timeout_ms = PM_BAT_SLEEP_MS;
 
-    if (hal_get_power(&st) == 0 && st.on_ac == 1) {
+    if (status_cache_get_power(&st) == 0 && st.on_ac == 1) {
         timeout_ms = PM_AC_SLEEP_MS;
     }
 

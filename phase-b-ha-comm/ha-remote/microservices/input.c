@@ -21,6 +21,7 @@ struct key_binding {
     int key_code;
     int pressed;
     int long_fired;
+    int short_on_down;
     int64_t down_ms;
     void (*short_cb)(void);
     void (*long_cb)(void);
@@ -45,6 +46,7 @@ void input_set_key_callbacks(int key_code, void (*short_press)(void), void (*lon
         if (g_key_bindings[i].key_code == key_code) {
             g_key_bindings[i].short_cb = short_press;
             g_key_bindings[i].long_cb = long_press;
+            g_key_bindings[i].short_on_down = 1;
             return;
         }
         if (free_slot < 0 && g_key_bindings[i].key_code == 0) {
@@ -56,6 +58,7 @@ void input_set_key_callbacks(int key_code, void (*short_press)(void), void (*lon
         g_key_bindings[free_slot].key_code = key_code;
         g_key_bindings[free_slot].short_cb = short_press;
         g_key_bindings[free_slot].long_cb = long_press;
+        g_key_bindings[free_slot].short_on_down = 1;
     }
 }
 
@@ -94,8 +97,11 @@ static int dispatch_key_binding(const struct hal_input_event *ev) {
         binding->pressed = 1;
         binding->long_fired = 0;
         binding->down_ms = ev->ts_ms ? ev->ts_ms : mono_ms_now();
+        if (binding->short_on_down && binding->short_cb) {
+            binding->short_cb();
+        }
     } else if (ev->value == 0) {
-        if (binding->pressed && !binding->long_fired && binding->short_cb) {
+        if (!binding->short_on_down && binding->pressed && !binding->long_fired && binding->short_cb) {
             binding->short_cb();
         }
         binding->pressed = 0;

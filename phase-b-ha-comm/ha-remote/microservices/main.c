@@ -11,6 +11,7 @@
 #include "stockui.h"
 #include "hal.h"
 #include "power_manager.h"
+#include "status_cache.h"
 
 static uint64_t ms_now(void)
 {
@@ -76,6 +77,7 @@ int main(void)
     input_set_activity_callback(input_activity);
 
     (void)hal_init();
+    (void)status_cache_start();
 
     lv_timer_create(ha_poll_timer_cb, 100, NULL);
 
@@ -91,6 +93,7 @@ int main(void)
     }
 
     ha_session_close();
+    status_cache_stop();
     input_deinit();
     ui_show_exit_screen();
     fb_deinit();

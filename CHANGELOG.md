@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.11-phase-b-input-response-cache — 2026-04-27
+
+- No visual change.
+- Added `status_cache` microservice so slow power/WiFi shell polling no longer runs in the UI/input path.
+- Changed Home short action to fire on key-down while preserving long-press emergency Exit behavior.
+- Recorded the rule that user input should respond as fast as possible, with progress indication for unavoidable delays above 3 seconds.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user accepted current responsiveness for now, with deeper Jive-level responsiveness deferred.
+
+---
+
 ## v0.8.10-phase-b-hal-wifi-refactor — 2026-04-27
 
 - No visual change.

@@ -56,6 +56,8 @@ Rules:
 - Status bar now uses extracted Jive WiFi and battery/AC PNG assets plus embedded Jive FreeSans/FreeSansBold font assets.
 - Approved graphical details are version-bound: reverting to a tag/release must restore the exact approved graphics for that version unless explicitly changed.
 - WiFi connected-state detection is owned by HAL via `hal_get_wifi()`; UI only renders the approved icon for the reported state.
+- Power/WiFi polling is cached by `status_cache` so blocking shell calls do not run in the UI/input path.
+- Home short action now fires on key-down; long Home still triggers emergency Exit. Current responsiveness is accepted for now, but still not Jive-level and should be revisited later.
 
 ---
 

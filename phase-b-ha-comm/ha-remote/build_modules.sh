@@ -4,7 +4,7 @@ export PATH="/workspace/output/host/bin:$PATH"
 SRC="$(find lvgl/src -type f -name '*.c')"
 
  arm-buildroot-linux-musleabi-gcc \
-   -Os -static -s -Wl,--gc-sections \
+   -Os -static -s -Wl,--gc-sections -pthread \
    -ffunction-sections -fdata-sections \
    -march=armv5te -mtune=arm926ej-s \
    -DLV_CONF_INCLUDE_SIMPLE=1 \
@@ -14,6 +14,7 @@ SRC="$(find lvgl/src -type f -name '*.c')"
    microservices/input.c \
    microservices/hal.c \
    microservices/power_manager.c \
+   microservices/status_cache.c \
    microservices/assets/jive_assets.c \
    microservices/ui.c \
    microservices/ha_config.c \

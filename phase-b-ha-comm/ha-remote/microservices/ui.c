@@ -5,7 +5,7 @@
 #include <time.h>
 
 #include "ui.h"
-#include "hal.h"
+#include "status_cache.h"
 #include "ha_ws.h"
 #include "assets/jive_assets.h"
 #include "src/extra/libs/tiny_ttf/lv_tiny_ttf.h"
@@ -50,9 +50,10 @@ static void status_update(void)
 {
   if(g_wifi_img) {
     struct hal_wifi_state st;
-    int connected = (hal_get_wifi(&st) == 0 && st.connected == 1);
-    lv_img_set_src(g_wifi_img,
-                   connected ? &jive_icon_wireless_4 : &jive_icon_wireless_cantconnect);
+    if(status_cache_get_wifi(&st) == 0 && st.connected >= 0) {
+      lv_img_set_src(g_wifi_img,
+                     st.connected == 1 ? &jive_icon_wireless_4 : &jive_icon_wireless_cantconnect);
+    }
   }
 
   if(g_time_label) {
@@ -66,8 +67,8 @@ static void status_update(void)
 
   if(g_power_img) {
     struct hal_power_state st;
-    if(hal_get_power(&st) != 0) {
-      lv_img_set_src(g_power_img, &jive_icon_battery_none);
+    if(status_cache_get_power(&st) != 0) {
+      return;
     } else if(st.on_ac == 1) {
       lv_img_set_src(g_power_img, &jive_icon_battery_ac);
     } else if(st.on_ac == 0) {
