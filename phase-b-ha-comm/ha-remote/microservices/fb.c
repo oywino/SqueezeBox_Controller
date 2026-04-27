@@ -123,5 +123,15 @@ void fb_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p)
 
 void lcd_wake(void)
 {
+    if (g_fb_fd >= 0) {
+        (void)ioctl(g_fb_fd, FBIOBLANK, FB_BLANK_UNBLANK);
+    }
     (void)system("/usr/bin/jivectl 11 >/dev/null 2>&1");
+}
+
+void lcd_sleep(void)
+{
+    if (g_fb_fd >= 0) {
+        (void)ioctl(g_fb_fd, FBIOBLANK, FB_BLANK_POWERDOWN);
+    }
 }

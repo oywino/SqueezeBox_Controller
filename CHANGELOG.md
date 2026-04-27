@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.8-phase-b-ui-shell-sleep — 2026-04-27
+
+- Renamed the Phase B runtime binary to `ha-squeeze-remote-armv5`; preserved the last verified `ha-remote-armv5` test binary untouched.
+- Added the first Phase B UI shell: screen section outline, AC/BAT cradle indicator, placeholder left menu on short Home, and emergency Exit on long Home.
+- Reworked keypad long-press handling into a reusable input-layer key binding model with Jive-like hold timing.
+- Added verified sleep behavior: BAT sleeps after about 30 seconds idle, AC stays awake past 30 seconds, and key/wheel/accelerometer activity wakes the screen.
+- Hardware-verified on Squeezebox controller `192.168.1.65`.
+
+---
+
 ## v0.8.7-phase-b-mvp-config — 2026-04-26
 
 - Recorded the approved Phase B MVP direction: prove `Squeezebox UI -> HA live state -> user action -> HA service call -> visible result`.

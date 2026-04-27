@@ -34,7 +34,7 @@ Rules:
 
 ---
 
-## Current status (artifact-synced 2026-04-26)
+## Current status (artifact-synced 2026-04-27)
 
 - LVGL apps run on `/dev/fb0` and read input events.
 - Active binaries live under `/mnt/storage/phase-a-lvgl/`.
@@ -48,6 +48,11 @@ Rules:
 - Ubuntu container path is `/workspace/SqueezeBox_Controller`.
 - Legacy drive-letter workspace usage is retired for current operations.
 - Runtime/deploy procedure for current Squeezebox `192.168.1.65` is documented in `phase-b-ha-comm/tools/README.md`.
+- Current Phase B runtime binary is `ha-squeeze-remote-armv5`.
+- The last verified test-phase binary `ha-remote-armv5` remains preserved and untouched.
+- First Phase B UI shell is hardware-verified: screen section outline, AC/BAT cradle indicator, short Home menu, long Home emergency Exit with Jive restore.
+- Reusable input-layer long-press binding is in place for pressable keypad keys.
+- Sleep behavior is hardware-verified: BAT sleeps after about 30 seconds idle, AC stays awake past 30 seconds, and key/wheel/accelerometer activity wakes the screen.
 
 ---
 
@@ -118,6 +123,7 @@ Rules:
 - v0.8.2 — RosCard mapping skeleton created.
 - v0.8.3 — RosCard decision artifacts completed.
 - v0.8.7 — Phase B MVP config aligned to Light, Cover, Switch, Media Player.
+- v0.8.8 — Phase B UI shell, reusable long-press, and sleep behavior verified.
 
 ---
 

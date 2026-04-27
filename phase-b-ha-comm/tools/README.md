@@ -79,6 +79,14 @@ Current Phase B app path:
 /workspace/SqueezeBox_Controller/phase-b-ha-comm/ha-remote
 ```
 
+Current Phase B runtime binary:
+
+```sh
+ha-squeeze-remote-armv5
+```
+
+The previous test-phase binary name, `ha-remote-armv5`, is preserved for the last verified communication-test artifact and should not be overwritten by current Phase B builds.
+
 Build scripts expect the Buildroot toolchain at:
 
 ```sh
@@ -100,6 +108,14 @@ Remote runtime directory:
 ```sh
 /mnt/storage/phase-a-lvgl
 ```
+
+Verified runtime behavior:
+
+- Short Home opens/closes the placeholder left menu.
+- Long Home performs emergency Exit and restores stock Jive.
+- On BAT, the screen sleeps after about 30 seconds idle.
+- On AC, the screen stays awake past 30 seconds.
+- Key, wheel, or accelerometer activity wakes the screen.
 
 On the verified `192.168.1.65` controller, this directory was not present initially and had to be created before deploy.
 
@@ -252,10 +268,12 @@ cd /workspace/SqueezeBox_Controller/phase-b-ha-comm/ha-remote
 Expected result:
 
 ```text
-ha-remote-armv5
+ha-squeeze-remote-armv5
 ```
 
 The binary is intentionally ignored by Git.
+
+The last verified test-phase binary name, `ha-remote-armv5`, is preserved for history. Current Phase B MVP builds use `ha-squeeze-remote-armv5`.
 
 ## Deploy
 
@@ -276,7 +294,7 @@ SB_A_HOST=root@<SQUEEZEBOX_IP> ./deploy_sb_a.sh
 Deploy result to verify:
 
 ```text
-/mnt/storage/phase-a-lvgl/ha-remote-armv5
+/mnt/storage/phase-a-lvgl/ha-squeeze-remote-armv5
 ```
 
 ### Verified Deploy Fallback from Codex
@@ -295,8 +313,8 @@ Copy the binary and helper using SCP mode. SFTP mode fails because the Squeezebo
 
 ```powershell
 pscp -scp -load CodexTempSqueezebox65 -batch -l root -pw 1234 `
-  \\NASF67175\Public\ubuntu\SqueezeBox_Controller\phase-b-ha-comm\ha-remote\ha-remote-armv5 `
-  root@192.168.1.65:/mnt/storage/phase-a-lvgl/ha-remote-armv5
+  \\NASF67175\Public\ubuntu\SqueezeBox_Controller\phase-b-ha-comm\ha-remote\ha-squeeze-remote-armv5 `
+  root@192.168.1.65:/mnt/storage/phase-a-lvgl/ha-squeeze-remote-armv5
 
 pscp -scp -load CodexTempSqueezebox65 -batch -l root -pw 1234 `
   \\NASF67175\Public\ubuntu\SqueezeBox_Controller\phase-b-ha-comm\stockui-stop-hard.sh `
@@ -308,7 +326,7 @@ Then set executable permissions:
 ```powershell
 <temporary PuTTY session wrapper>
 plink -load CodexTempSqueezebox65 -batch -l root -pw 1234 `
-  "chmod 755 /mnt/storage/phase-a-lvgl/ha-remote-armv5 /mnt/storage/phase-a-lvgl/stockui-stop-hard.sh && ls -lh /mnt/storage/phase-a-lvgl/ha-remote-armv5 /mnt/storage/phase-a-lvgl/stockui-stop-hard.sh"
+  "chmod 755 /mnt/storage/phase-a-lvgl/ha-squeeze-remote-armv5 /mnt/storage/phase-a-lvgl/stockui-stop-hard.sh && ls -lh /mnt/storage/phase-a-lvgl/ha-squeeze-remote-armv5 /mnt/storage/phase-a-lvgl/stockui-stop-hard.sh"
 ```
 
 ## Attached Test Run
@@ -398,13 +416,13 @@ Verified on hardware with controller `192.168.1.65`:
 ```text
 /mnt/storage/phase-a-lvgl/HA_LL_Token.txt created
 stockui-stop-hard.sh executed
-ha-remote-armv5 started detached
+ha-squeeze-remote-armv5 started detached
 ```
 
 Observed process state:
 
 ```text
-ha-remote-armv5 running
+ha-squeeze-remote-armv5 running
 dropbear still running
 ```
 

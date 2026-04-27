@@ -12,7 +12,9 @@
 /* UI state (encapsulated here) */
 static int g_should_exit = 0;
 static lv_obj_t *g_power_label = NULL;
-static void (*g_on_start)(void) = NULL;
+static lv_obj_t *g_menu_panel = NULL;
+static lv_obj_t *g_menu_scrim = NULL;
+static int g_menu_visible = 0;
 
 /* --- Internal helpers (all static) --- */
 
@@ -56,16 +58,70 @@ static void keep_visible(lv_timer_t *t)
   lv_obj_invalidate(lv_scr_act());
 }
 
-static void btn_probe_cb(lv_event_t *e)
+static lv_obj_t *make_section(lv_obj_t *parent, lv_coord_t x, lv_coord_t y,
+                              lv_coord_t w, lv_coord_t h)
 {
-  (void)e;
-  if(g_on_start) g_on_start();
+  lv_obj_t *obj = lv_obj_create(parent);
+  lv_obj_set_pos(obj, x, y);
+  lv_obj_set_size(obj, w, h);
+  lv_obj_set_style_bg_color(obj, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(obj, lv_color_hex(0x404040), 0);
+  lv_obj_set_style_border_width(obj, 1, 0);
+  lv_obj_set_style_radius(obj, 0, 0);
+  lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+  return obj;
 }
 
-static void btn_exit_cb(lv_event_t *e)
+static void build_menu(lv_obj_t *scr)
 {
-  (void)e;
-  g_should_exit = 1;
+  g_menu_scrim = lv_obj_create(scr);
+  lv_obj_set_size(g_menu_scrim, 240, 320);
+  lv_obj_set_pos(g_menu_scrim, 0, 0);
+  lv_obj_set_style_bg_color(g_menu_scrim, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(g_menu_scrim, LV_OPA_50, 0);
+  lv_obj_set_style_border_width(g_menu_scrim, 0, 0);
+  lv_obj_add_flag(g_menu_scrim, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(g_menu_scrim, LV_OBJ_FLAG_SCROLLABLE);
+
+  g_menu_panel = lv_obj_create(scr);
+  lv_obj_set_size(g_menu_panel, 132, 320);
+  lv_obj_set_pos(g_menu_panel, 0, 0);
+  lv_obj_set_style_bg_color(g_menu_panel, lv_color_hex(0x101010), 0);
+  lv_obj_set_style_bg_opa(g_menu_panel, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(g_menu_panel, lv_color_hex(0xFFFF00), 0);
+  lv_obj_set_style_border_width(g_menu_panel, 1, 0);
+  lv_obj_set_style_radius(g_menu_panel, 0, 0);
+  lv_obj_add_flag(g_menu_panel, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(g_menu_panel, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t *title = lv_label_create(g_menu_panel);
+  lv_label_set_text(title, "Menu");
+  lv_obj_set_style_text_color(title, lv_color_hex(0xFFFF00), 0);
+  lv_obj_align(title, LV_ALIGN_TOP_LEFT, 8, 8);
+
+  static const char *items[] = { "Cards", "Refresh", "Status" };
+  for (int i = 0; i < 3; i++) {
+    lv_obj_t *item = lv_label_create(g_menu_panel);
+    lv_label_set_text(item, items[i]);
+    lv_obj_set_style_text_color(item, lv_color_white(), 0);
+    lv_obj_align(item, LV_ALIGN_TOP_LEFT, 12, 42 + (i * 30));
+  }
+}
+
+static void set_menu_visible(int visible)
+{
+  g_menu_visible = visible ? 1 : 0;
+  if (!g_menu_panel || !g_menu_scrim) return;
+
+  if (g_menu_visible) {
+    lv_obj_clear_flag(g_menu_scrim, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(g_menu_panel, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(g_menu_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_menu_scrim, LV_OBJ_FLAG_HIDDEN);
+  }
+  lv_obj_invalidate(lv_scr_act());
 }
 
 /* Suppressed: no LCD output for HA status */
@@ -79,17 +135,34 @@ static void ui_update_ha_status(const char *status, int connected, int have_stat
 
 /* --- Public API --- */
 
-void ui_set_on_start(void (*fn)(void))
-{
-  g_on_start = fn;
-}
-
 void ui_init(lv_group_t *grp)
 {
   g_should_exit = 0;
+  g_menu_visible = 0;
 
   lv_obj_t *scr = lv_scr_act();
+  lv_obj_clean(scr);
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
+
+  lv_obj_t *header = make_section(scr, 0, 0, 240, 34);
+  lv_obj_t *main_area = make_section(scr, 0, 34, 240, 232);
+  lv_obj_t *footer = make_section(scr, 0, 266, 240, 54);
+
+  lv_obj_t *title = lv_label_create(header);
+  lv_label_set_text(title, "HA Remote");
+  lv_obj_set_style_text_color(title, lv_color_white(), 0);
+  lv_obj_align(title, LV_ALIGN_LEFT_MID, 8, 0);
+
+  lv_obj_t *state = lv_label_create(main_area);
+  lv_label_set_text(state, "Card area");
+  lv_obj_set_style_text_color(state, lv_color_hex(0xB0B0B0), 0);
+  lv_obj_center(state);
+
+  lv_obj_t *hint = lv_label_create(footer);
+  lv_label_set_text(hint, "Home: Menu");
+  lv_obj_set_style_text_color(hint, lv_color_hex(0xB0B0B0), 0);
+  lv_obj_align(hint, LV_ALIGN_LEFT_MID, 8, 0);
 
   /* Bottom-right power indicator */
   g_power_label = lv_label_create(scr);
@@ -98,36 +171,8 @@ void ui_init(lv_group_t *grp)
   lv_obj_align(g_power_label, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
   pwr_indicator_update();
   lv_timer_create(pwr_indicator_timer_cb, 1000, NULL);
-
-  /* Button 1: Start HA session */
-  lv_obj_t *btn1 = lv_btn_create(scr);
-  lv_obj_set_size(btn1, 200, 46);
-  lv_obj_align(btn1, LV_ALIGN_CENTER, 0, -20);
-  lv_obj_set_style_border_width(btn1, 2, LV_PART_MAIN | LV_STATE_FOCUSED);
-  lv_obj_set_style_border_color(btn1, lv_color_hex(0xFFFF00), LV_PART_MAIN | LV_STATE_FOCUSED);
-  lv_obj_set_style_border_opa(btn1, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_FOCUSED);
-  if(grp) lv_group_add_obj(grp, btn1);
-  lv_obj_add_event_cb(btn1, btn_probe_cb, LV_EVENT_CLICKED, NULL);
-
-  lv_obj_t *t1 = lv_label_create(btn1);
-  lv_label_set_text(t1, "Start HA Session");
-  lv_obj_center(t1);
-
-  /* Button 2: Exit */
-  lv_obj_t *btn2 = lv_btn_create(scr);
-  lv_obj_set_size(btn2, 200, 46);
-  lv_obj_align(btn2, LV_ALIGN_CENTER, 0, 40);
-  lv_obj_set_style_border_width(btn2, 2, LV_PART_MAIN | LV_STATE_FOCUSED);
-  lv_obj_set_style_border_color(btn2, lv_color_hex(0xFFFF00), LV_PART_MAIN | LV_STATE_FOCUSED);
-  lv_obj_set_style_border_opa(btn2, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_FOCUSED);
-  if(grp) lv_group_add_obj(grp, btn2);
-  lv_obj_add_event_cb(btn2, btn_exit_cb, LV_EVENT_CLICKED, NULL);
-
-  lv_obj_t *t2 = lv_label_create(btn2);
-  lv_label_set_text(t2, "Exit");
-  lv_obj_center(t2);
-
-  lv_group_focus_obj(btn1);
+  build_menu(scr);
+  (void)grp;
 
   /* Keep LVGL refreshing */
   lv_timer_create(keep_visible, 30, NULL);
@@ -139,6 +184,16 @@ void ui_init(lv_group_t *grp)
 int ui_should_exit(void)
 {
   return g_should_exit ? 1 : 0;
+}
+
+void ui_toggle_menu(void)
+{
+  set_menu_visible(!g_menu_visible);
+}
+
+void ui_emergency_exit(void)
+{
+  g_should_exit = 1;
 }
 
 void ui_show_exit_screen(void)

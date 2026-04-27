@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <linux/input.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -10,6 +10,7 @@
 #include "ui.h"
 #include "stockui.h"
 #include "hal.h"
+#include "power_manager.h"
 
 static uint64_t ms_now(void)
 {
@@ -18,17 +19,9 @@ static uint64_t ms_now(void)
     return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)ts.tv_nsec / 1000000ULL;
 }
 
-static void ui_start_ha_session(void)
+static int input_activity(void)
 {
-    const char *host  = getenv("HA_HOST");
-    const char *token = getenv("HA_TOKEN");
-
-    if (!host || !*host || !token || !*token) {
-        printf("HA: set HA_HOST + HA_TOKEN\n");
-        fflush(stdout);
-        return;
-    }
-    (void)ha_session_start(host, token);
+    return power_manager_note_activity(ms_now());
 }
 
 int main(void)
@@ -46,6 +39,7 @@ int main(void)
     }
 
     lcd_wake();
+    power_manager_init(ms_now());
 
     if (input_init() != 0) {
         printf("input_init failed\n");
@@ -78,10 +72,10 @@ int main(void)
     lv_indev_set_group(indev, grp);
 
     ui_init(grp);
-    ui_set_on_start(ui_start_ha_session);
+    input_set_key_callbacks(KEY_HOME, ui_toggle_menu, ui_emergency_exit);
+    input_set_activity_callback(input_activity);
 
     (void)hal_init();
-    ui_start_ha_session();
 
     lv_timer_create(ha_poll_timer_cb, 100, NULL);
 
@@ -91,6 +85,7 @@ int main(void)
         uint32_t diff = (uint32_t)(now - last);
         last = now;
         lv_tick_inc(diff);
+        power_manager_tick(now);
         lv_timer_handler();
         usleep(5000);
     }

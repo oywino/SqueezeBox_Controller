@@ -21,6 +21,7 @@
 **/*.log
 **/a.out
 **/ha-remote-armv5
+**/ha-squeeze-remote-armv5
 **/ha-remote-armv5_mono
 **/lvgl-hello-armv5
 **/fbblank-armv5

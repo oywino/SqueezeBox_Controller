@@ -42,6 +42,14 @@ MVP card set:
 
 Climate is deferred. Emergency Exit remains available as a recovery path, not as normal navigation.
 
+Verified Phase B UI/runtime checkpoint:
+
+- Runtime binary renamed to `ha-squeeze-remote-armv5`.
+- Test-phase `ha-remote-armv5` is preserved as the last verified communication-test binary.
+- UI shell has screen sections, AC/BAT cradle indicator, Home menu placeholder, and long-Home emergency Exit.
+- Input layer supports reusable short/long press bindings for keypad keys.
+- Sleep behavior is active: BAT sleeps after about 30 seconds idle; AC stays awake past 30 seconds; key/wheel/accelerometer activity wakes the screen.
+
 ## Exit criteria (Phase B done)
 
 - Reliable start/stop that does not trigger the watchdog
@@ -113,6 +121,7 @@ Climate is deferred. Emergency Exit remains available as a recovery path, not as
 
 - [ ] **Step 12. Minimal demo UI (“one screen per card type” PoC)**  
   Start with Light, Cover, Switch, and Media Player; wheel navigation; push/long-push actions; verify end-to-end loop.
+  First shell verified at `v0.8.8-phase-b-ui-shell-sleep`; card population remains pending.
 
 - [ ] **Step 13. Configuration loading**  
   Load small config for entity IDs + layout; allow reload on startup.

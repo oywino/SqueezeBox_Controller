@@ -13,6 +13,7 @@ SRC="$(find lvgl/src -type f -name '*.c')"
    microservices/fb.c \
    microservices/input.c \
    microservices/hal.c \
+   microservices/power_manager.c \
    microservices/ui.c \
    microservices/ha_config.c \
    microservices/ha_ws.c \
@@ -20,6 +21,6 @@ SRC="$(find lvgl/src -type f -name '*.c')"
    microservices/stockui.c \
    microservices/crypto.c \
    $SRC -lm \
-   -o ha-remote-armv5
+   -o ha-squeeze-remote-armv5
 
-ls -lh ha-remote-armv5
+ls -lh ha-squeeze-remote-armv5
