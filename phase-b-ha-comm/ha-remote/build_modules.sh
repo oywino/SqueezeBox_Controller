@@ -14,6 +14,7 @@ SRC="$(find lvgl/src -type f -name '*.c')"
    microservices/input.c \
    microservices/hal.c \
    microservices/power_manager.c \
+   microservices/assets/jive_assets.c \
    microservices/ui.c \
    microservices/ha_config.c \
    microservices/ha_ws.c \

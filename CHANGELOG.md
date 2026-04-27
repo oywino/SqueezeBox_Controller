@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.9-phase-b-jive-status-icons-fonts — 2026-04-27
+
+- Replaced LVGL status glyphs with extracted Jive WiFi and battery/AC PNG assets.
+- Embedded Jive `FreeSans` and `FreeSansBold` font assets for the approved visual shell.
+- Updated WiFi connected-state detection for the controller's WiFi-as-`eth0` behavior.
+- Recorded the rule that approved graphical details are version-bound and must restore exactly on tag/release revert unless explicitly changed.
+- Hardware-approved on Squeezebox controller `192.168.1.65`; card placeholder icons remain as currently displayed.
+
+---
+
 ## v0.8.8-phase-b-ui-shell-sleep — 2026-04-27
 
 - Renamed the Phase B runtime binary to `ha-squeeze-remote-armv5`; preserved the last verified `ha-remote-armv5` test binary untouched.

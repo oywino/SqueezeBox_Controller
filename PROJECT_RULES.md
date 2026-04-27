@@ -8,6 +8,8 @@ These rules override chat memory. If there is any conflict, this file wins.
 - This includes fixes/corrections: still one change at a time.
 - After each verified change: update CHANGELOG + create snapshot.
 - When UI output changes, describe exactly what will be visible before running.
+- Approved graphical details are version-bound. Reverting to a pushed tag or release must restore every graphical detail exactly as it was in that version, unless the user explicitly approves a deviation.
+- Before every UI deploy, show a 240x320 1:1 mockup or screenshot for approval.
 - Never provide code or doc snippets as diff files. Always handover complete files.
 - Never modify any code file without first requesting an upload of the existing current working version of the same file.
 
