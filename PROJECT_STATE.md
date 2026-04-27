@@ -55,6 +55,7 @@ Rules:
 - Sleep behavior is hardware-verified: BAT sleeps after about 30 seconds idle, AC stays awake past 30 seconds, and key/wheel/accelerometer activity wakes the screen.
 - Status bar now uses extracted Jive WiFi and battery/AC PNG assets plus embedded Jive FreeSans/FreeSansBold font assets.
 - Approved graphical details are version-bound: reverting to a tag/release must restore the exact approved graphics for that version unless explicitly changed.
+- WiFi connected-state detection is owned by HAL via `hal_get_wifi()`; UI only renders the approved icon for the reported state.
 
 ---
 

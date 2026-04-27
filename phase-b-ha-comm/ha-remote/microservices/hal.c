@@ -168,3 +168,25 @@ int hal_get_power(struct hal_power_state *st) {
 
     return 0;
 }
+
+int hal_get_wifi(struct hal_wifi_state *st) {
+    if (st == NULL) return -EINVAL;
+
+    st->connected = -1;
+    st->signal_level = -1;
+
+    FILE *fp = popen("/sbin/iwconfig eth0 2>/dev/null", "r");
+    if (!fp) return -errno;
+
+    char buf[256];
+    while (fgets(buf, sizeof(buf), fp)) {
+        if (strstr(buf, "Access Point:")) {
+            st->connected = strstr(buf, "Not-Associated") ? 0 : 1;
+        }
+    }
+
+    (void)pclose(fp);
+    if (st->connected < 0) return -EIO;
+    if (st->connected == 1) st->signal_level = 4;
+    return 0;
+}

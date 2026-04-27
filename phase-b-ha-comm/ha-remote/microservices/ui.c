@@ -46,28 +46,13 @@ static uint64_t ms_now(void)
   return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)ts.tv_nsec / 1000000ULL;
 }
 
-static int wifi_connected(void)
-{
-  FILE *f = popen("/sbin/iwconfig eth0 2>/dev/null", "r");
-  if(!f) return 0;
-
-  char line[160];
-  int connected = 0;
-  while(fgets(line, sizeof(line), f)) {
-    if(strstr(line, "Access Point:") && !strstr(line, "Not-Associated")) {
-      connected = 1;
-      break;
-    }
-  }
-  (void)pclose(f);
-  return connected;
-}
-
 static void status_update(void)
 {
   if(g_wifi_img) {
+    struct hal_wifi_state st;
+    int connected = (hal_get_wifi(&st) == 0 && st.connected == 1);
     lv_img_set_src(g_wifi_img,
-                   wifi_connected() ? &jive_icon_wireless_4 : &jive_icon_wireless_cantconnect);
+                   connected ? &jive_icon_wireless_4 : &jive_icon_wireless_cantconnect);
   }
 
   if(g_time_label) {

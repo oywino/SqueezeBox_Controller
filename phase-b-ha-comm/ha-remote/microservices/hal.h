@@ -45,6 +45,12 @@ struct hal_power_state {
     int charging;  /* 1 charging, 0 not charging, -1 unknown */
 };
 
+/* Network telemetry snapshot. */
+struct hal_wifi_state {
+    int connected;      /* 1 connected, 0 disconnected, -1 unknown */
+    int signal_level;   /* 0-4 if known, -1 unknown */
+};
+
 /* Initialize/shutdown HAL lifetime. */
 int  hal_init(void);
 void hal_shutdown(void);
@@ -63,6 +69,9 @@ int  hal_poll_input(struct hal_input_event *ev, int timeout_ms);
  *  <0  => error (negative errno-style code)
  */
 int  hal_get_power(struct hal_power_state *st);
+
+/* Read current WiFi/link snapshot. */
+int  hal_get_wifi(struct hal_wifi_state *st);
 
 #ifdef __cplusplus
 }

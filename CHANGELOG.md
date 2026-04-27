@@ -2,6 +2,15 @@
 
 ---
 
+## v0.8.10-phase-b-hal-wifi-refactor — 2026-04-27
+
+- No visual change.
+- Moved WiFi connected-state detection out of `ui.c` and into HAL as `hal_get_wifi()`.
+- Kept UI responsibility limited to rendering the already-approved Jive WiFi icon based on HAL state.
+- Build verified.
+
+---
+
 ## v0.8.9-phase-b-jive-status-icons-fonts — 2026-04-27
 
 - Replaced LVGL status glyphs with extracted Jive WiFi and battery/AC PNG assets.
