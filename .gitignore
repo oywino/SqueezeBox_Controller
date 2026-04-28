@@ -1,6 +1,7 @@
 # External toolchains and local build roots
 /buildroot/
 /output/
+/.deps/
 
 # Release, backup, and packaging outputs
 /artifacts/

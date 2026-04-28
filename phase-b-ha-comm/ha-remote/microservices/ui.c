@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "ui.h"
+#include "audio_feedback.h"
 #include "status_cache.h"
 #include "ha_ws.h"
 #include "assets/jive_assets.h"
@@ -25,13 +26,17 @@
 #define MENU_X_HIDDEN -MENU_W
 #define MENU_Y (MAIN_Y + 10)
 #define MENU_H 188
+#define MENU_ROW_COUNT 5
 
 static int g_should_exit = 0;
 static int g_menu_visible = 0;
+static int g_menu_selected = 0;
 static lv_obj_t *g_wifi_img = NULL;
 static lv_obj_t *g_time_label = NULL;
 static lv_obj_t *g_power_img = NULL;
 static lv_obj_t *g_menu_panel = NULL;
+static lv_obj_t *g_menu_rows[MENU_ROW_COUNT] = { NULL };
+static lv_obj_t *g_menu_labels[MENU_ROW_COUNT] = { NULL };
 static lv_font_t *g_font_top = NULL;
 static lv_font_t *g_font_menu = NULL;
 static lv_font_t *g_font_menu_sel = NULL;
@@ -83,12 +88,6 @@ static void status_timer_cb(lv_timer_t *t)
 {
   (void)t;
   status_update();
-}
-
-static void keep_visible(lv_timer_t *t)
-{
-  (void)t;
-  lv_obj_invalidate(lv_scr_act());
 }
 
 static lv_obj_t *make_panel(lv_obj_t *parent, lv_coord_t x, lv_coord_t y,
@@ -150,14 +149,39 @@ static void build_card(lv_obj_t *main_area, lv_coord_t y, const char *title,
   lv_obj_align(value, LV_ALIGN_TOP_LEFT, 46, 38);
 }
 
-static lv_obj_t *build_menu_row(lv_obj_t *parent, lv_coord_t y, const char *text, int selected)
+static void set_menu_row_selected(int idx, int selected)
 {
+  if(idx < 0 || idx >= MENU_ROW_COUNT || !g_menu_rows[idx] || !g_menu_labels[idx]) return;
+
+  lv_obj_set_style_bg_color(g_menu_rows[idx], lv_color_hex(selected ? 0x006DCC : 0xFFFFFF), 0);
+  lv_obj_set_style_text_color(g_menu_labels[idx], lv_color_hex(selected ? 0xFFFFFF : 0x000000), 0);
+  set_label_font(g_menu_labels[idx], selected ? g_font_menu_sel : g_font_menu);
+}
+
+static void set_menu_selected(int selected)
+{
+  if(selected < 0) selected = 0;
+  if(selected >= MENU_ROW_COUNT) selected = MENU_ROW_COUNT - 1;
+  if(selected == g_menu_selected) return;
+
+  set_menu_row_selected(g_menu_selected, 0);
+  g_menu_selected = selected;
+  set_menu_row_selected(g_menu_selected, 1);
+}
+
+static lv_obj_t *build_menu_row(lv_obj_t *parent, int idx, lv_coord_t y, const char *text)
+{
+  int selected = (idx == g_menu_selected);
   lv_obj_t *row = make_panel(parent, 10, y, MENU_W - 24, 28,
                              selected ? 0x006DCC : 0xFFFFFF, 5);
 
   lv_obj_t *label = make_label(row, text, selected ? 0xFFFFFF : 0x000000);
   set_label_font(label, selected ? g_font_menu_sel : g_font_menu);
   lv_obj_align(label, LV_ALIGN_LEFT_MID, 8, 0);
+  if(idx >= 0 && idx < MENU_ROW_COUNT) {
+    g_menu_rows[idx] = row;
+    g_menu_labels[idx] = label;
+  }
   return row;
 }
 
@@ -166,14 +190,11 @@ static void build_menu(lv_obj_t *scr)
   g_menu_panel = make_panel(scr, MENU_X_HIDDEN, MENU_Y, MENU_W, MENU_H, 0xFFFFFF, 10);
   lv_obj_set_style_border_width(g_menu_panel, 0, 0);
 
-  lv_obj_t *title = make_label(g_menu_panel, "Menu", 0x000000);
-  set_label_font(title, g_font_title);
-  lv_obj_align(title, LV_ALIGN_TOP_LEFT, 18, 12);
-
-  build_menu_row(g_menu_panel, 42, "Cards", 1);
-  build_menu_row(g_menu_panel, 76, "Refresh", 0);
-  build_menu_row(g_menu_panel, 110, "Status", 0);
-  build_menu_row(g_menu_panel, 144, "Config", 0);
+  build_menu_row(g_menu_panel, 0, 12, "Cards");
+  build_menu_row(g_menu_panel, 1, 46, "Refresh");
+  build_menu_row(g_menu_panel, 2, 80, "Status");
+  build_menu_row(g_menu_panel, 3, 114, "Config");
+  build_menu_row(g_menu_panel, 4, 148, "More");
 }
 
 static void set_menu_x(void *obj, int32_t x)
@@ -208,6 +229,11 @@ void ui_init(lv_group_t *grp)
 {
   g_should_exit = 0;
   g_menu_visible = 0;
+  g_menu_selected = 0;
+  for(int i = 0; i < MENU_ROW_COUNT; ++i) {
+    g_menu_rows[i] = NULL;
+    g_menu_labels[i] = NULL;
+  }
 
   lv_obj_t *scr = lv_scr_act();
   init_fonts();
@@ -241,7 +267,6 @@ void ui_init(lv_group_t *grp)
   build_menu(scr);
   status_update();
   lv_timer_create(status_timer_cb, 1000, NULL);
-  lv_timer_create(keep_visible, 30, NULL);
   lv_timer_create(ha_poll_timer_cb, 100, NULL);
 
   (void)grp;
@@ -255,6 +280,21 @@ int ui_should_exit(void)
 void ui_toggle_menu(void)
 {
   set_menu_visible(!g_menu_visible);
+}
+
+int ui_menu_wheel(int diff)
+{
+  if(!g_menu_visible || diff == 0) return 0;
+
+  int old_selected = g_menu_selected;
+  set_menu_selected(g_menu_selected + (diff > 0 ? 1 : -1));
+  if(g_menu_selected != old_selected) audio_feedback_play(AUDIO_FEEDBACK_MOVE);
+  return 1;
+}
+
+int ui_menu_is_visible(void)
+{
+  return g_menu_visible ? 1 : 0;
 }
 
 void ui_emergency_exit(void)

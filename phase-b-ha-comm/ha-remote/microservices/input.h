@@ -12,11 +12,17 @@
 int  input_init(void);     /* returns 0 on success */
 void input_deinit(void);
 
-/* Key callbacks: short on release, long after the hold threshold while still pressed. */
+/* Key callbacks: short on press, long after the hold threshold while still pressed. */
 void input_set_key_callbacks(int key_code, void (*short_press)(void), void (*long_press)(void));
+
+/* Wheel callback. Return nonzero to consume wheel input before LVGL encoder fallback. */
+void input_set_wheel_callback(int (*wheel)(int diff));
 
 /* Called on every input event. Return nonzero to consume the event. */
 void input_set_activity_callback(int (*activity)(void));
+
+/* Drain queued Linux input events from the UI/main loop. */
+void input_pump_events(void);
 
 /* LVGL indev read callback (encoder+button). */
 void indev_encoder_read(lv_indev_drv_t *drv, lv_indev_data_t *data);

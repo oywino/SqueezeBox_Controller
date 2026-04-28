@@ -93,6 +93,14 @@ Build scripts expect the Buildroot toolchain at:
 /workspace/output/host/bin
 ```
 
+The current `audio_feedback` microservice also links against the local ARMv5 ALSA build staged at:
+
+```sh
+/workspace/SqueezeBox_Controller/.deps/alsa-armv5
+```
+
+The `.deps` directory is workspace-local and is not committed.
+
 ### Squeezebox Device
 
 Verified current controller:
@@ -112,6 +120,8 @@ Remote runtime directory:
 Verified runtime behavior:
 
 - Short Home opens/closes the placeholder left menu.
+- Wheel moves selection in the placeholder left menu.
+- Menu/button audio feedback is enabled and stable after removing the forced redraw bottleneck.
 - Long Home performs emergency Exit and restores stock Jive.
 - On BAT, the screen sleeps after about 30 seconds idle.
 - On AC, the screen stays awake past 30 seconds.
@@ -123,10 +133,10 @@ On the verified `192.168.1.65` controller, this directory was not present initia
 
 To connect to any Squeezebox Controller over SSH, first boot the stock Jive UI normally.
 
-Hard precondition for Codex:
+Current Codex assumption:
 
 ```text
-Before every Squeezebox SSH login attempt, ask the user to confirm that the controller is powered on, awake, connected to WiFi, and has SSH enabled.
+Assume the controller is powered on, awake, connected to WiFi, and has SSH enabled unless the user says otherwise.
 ```
 
 Codex cannot wake or power on the controller remotely if it is off or asleep.

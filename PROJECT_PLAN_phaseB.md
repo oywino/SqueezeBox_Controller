@@ -49,6 +49,7 @@ Verified Phase B UI/runtime checkpoint:
 - UI shell has screen sections, AC/BAT cradle indicator, Home menu placeholder, and long-Home emergency Exit.
 - Input layer supports reusable short/long press bindings for keypad keys.
 - Sleep behavior is active: BAT sleeps after about 30 seconds idle; AC stays awake past 30 seconds; key/wheel/accelerometer activity wakes the screen.
+- Menu input/audio responsiveness is hardware-verified at `v0.8.12-phase-b-responsive-menu-audio`: input polling is threaded, menu wheel selection works without the forced redraw bottleneck, and feedback sound is stable.
 
 ## Exit criteria (Phase B done)
 
@@ -121,7 +122,7 @@ Verified Phase B UI/runtime checkpoint:
 
 - [ ] **Step 12. Minimal demo UI (“one screen per card type” PoC)**  
   Start with Light, Cover, Switch, and Media Player; wheel navigation; push/long-push actions; verify end-to-end loop.
-  First shell verified at `v0.8.8-phase-b-ui-shell-sleep`; card population remains pending.
+  First shell verified at `v0.8.8-phase-b-ui-shell-sleep`; responsive menu/audio behavior verified at `v0.8.12-phase-b-responsive-menu-audio`; card population remains pending.
 
 - [ ] **Step 13. Configuration loading**  
   Load small config for entity IDs + layout; allow reload on startup.

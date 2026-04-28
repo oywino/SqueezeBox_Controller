@@ -2,6 +2,19 @@
 
 ---
 
+## v0.8.12-phase-b-responsive-menu-audio — 2026-04-28
+
+- No visual design change.
+- Added the `audio_feedback` microservice with isolated worker-thread playback for menu/button feedback.
+- Added a dedicated input polling thread so Linux input reads are no longer tied directly to LVGL's input callback.
+- Added menu wheel selection handling: Home opens the approved pull-out menu, wheel moves the selected row, no wrap.
+- Measured the actual responsiveness bottleneck with temporary instrumentation and removed it afterward.
+- Removed the forced full-screen redraw timer that invalidated the display every 30 ms; this was the root cause of severe lag and choppy sound.
+- Added architecture notes for the Jive-aligned and threaded runtime model.
+- Hardware-verified on Squeezebox controller `192.168.1.65`: menu response is near perfect and sound is stable.
+
+---
+
 ## v0.8.11-phase-b-input-response-cache — 2026-04-27
 
 - No visual change.

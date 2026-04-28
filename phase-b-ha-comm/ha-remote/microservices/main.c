@@ -9,6 +9,7 @@
 #include "ha_ws.h"
 #include "ui.h"
 #include "stockui.h"
+#include "audio_feedback.h"
 #include "hal.h"
 #include "power_manager.h"
 #include "status_cache.h"
@@ -74,9 +75,11 @@ int main(void)
 
     ui_init(grp);
     input_set_key_callbacks(KEY_HOME, ui_toggle_menu, ui_emergency_exit);
+    input_set_wheel_callback(ui_menu_wheel);
     input_set_activity_callback(input_activity);
 
     (void)hal_init();
+    (void)audio_feedback_start();
     (void)status_cache_start();
 
     lv_timer_create(ha_poll_timer_cb, 100, NULL);
@@ -88,12 +91,14 @@ int main(void)
         last = now;
         lv_tick_inc(diff);
         power_manager_tick(now);
+        input_pump_events();
         lv_timer_handler();
         usleep(5000);
     }
 
     ha_session_close();
     status_cache_stop();
+    audio_feedback_stop();
     input_deinit();
     ui_show_exit_screen();
     fb_deinit();

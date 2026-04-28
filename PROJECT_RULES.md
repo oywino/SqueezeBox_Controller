@@ -21,7 +21,7 @@ These rules override chat memory. If there is any conflict, this file wins.
 
 ## Squeezebox file transfer
 
-Before every Squeezebox SSH/SCP attempt, confirm with the user that the controller is powered on, awake, connected to WiFi, and has SSH enabled.
+Assume the Squeezebox controller is powered on, awake, connected to WiFi, and has SSH enabled unless the user says otherwise.
 
 Use the current procedure in `phase-b-ha-comm/tools/README.md`. The currently verified controller is `root@192.168.1.65`, but the address is DHCP-assigned and must be confirmed from the Jive Remote Login screen before deploy/run.
 

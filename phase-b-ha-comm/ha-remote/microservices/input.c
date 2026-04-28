@@ -2,9 +2,11 @@
 
 #include <stdint.h>
 #include <linux/input.h>
+#include <pthread.h>
 #include <time.h>
 
 #include "lvgl.h"
+#include "audio_feedback.h"
 #include "hal.h"
 #include "input.h"
 #include "ha_ws.h"   // ha_session_note_activity(void)
@@ -13,9 +15,11 @@
 static volatile int g_enc_diff    = 0;
 static volatile int g_btn_pressed = 0;
 static int (*g_activity_cb)(void) = 0;
+static int (*g_wheel_cb)(int diff) = 0;
 
 #define INPUT_LONG_PRESS_MS 1000
 #define INPUT_MAX_KEY_BINDINGS 12
+#define INPUT_EVENT_QUEUE_LEN 32
 
 struct key_binding {
     int key_code;
@@ -29,15 +33,99 @@ struct key_binding {
 
 static struct key_binding g_key_bindings[INPUT_MAX_KEY_BINDINGS];
 
+static pthread_t g_input_thread;
+static pthread_mutex_t g_event_lock = PTHREAD_MUTEX_INITIALIZER;
+static volatile int g_input_thread_running = 0;
+static int g_input_thread_started = 0;
+static struct hal_input_event g_event_queue[INPUT_EVENT_QUEUE_LEN];
+static unsigned int g_event_head = 0;
+static unsigned int g_event_tail = 0;
+
 static int64_t mono_ms_now(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (int64_t)ts.tv_sec * 1000 + (int64_t)(ts.tv_nsec / 1000000);
 }
 
-/* Delegate lifecycle to HAL */
-int input_init(void)   { return hal_init(); }
-void input_deinit(void){ hal_shutdown(); }
+static int event_queue_empty(void) {
+    return g_event_head == g_event_tail;
+}
+
+static int event_queue_full(void) {
+    return ((g_event_tail + 1U) % INPUT_EVENT_QUEUE_LEN) == g_event_head;
+}
+
+static void event_queue_push(const struct hal_input_event *ev) {
+    pthread_mutex_lock(&g_event_lock);
+    if (event_queue_full()) {
+        g_event_head = (g_event_head + 1U) % INPUT_EVENT_QUEUE_LEN;
+    }
+    g_event_queue[g_event_tail] = *ev;
+    g_event_tail = (g_event_tail + 1U) % INPUT_EVENT_QUEUE_LEN;
+    pthread_mutex_unlock(&g_event_lock);
+}
+
+static int event_queue_pop(struct hal_input_event *ev) {
+    int have = 0;
+    pthread_mutex_lock(&g_event_lock);
+    if (!event_queue_empty()) {
+        *ev = g_event_queue[g_event_head];
+        g_event_head = (g_event_head + 1U) % INPUT_EVENT_QUEUE_LEN;
+        have = 1;
+    }
+    pthread_mutex_unlock(&g_event_lock);
+    return have;
+}
+
+static void *input_thread_main(void *arg) {
+    (void)arg;
+
+    while (g_input_thread_running) {
+        struct hal_input_event ev;
+        int rc = hal_poll_input(&ev, 100);
+        if (rc > 0) {
+            event_queue_push(&ev);
+        }
+    }
+
+    return NULL;
+}
+
+/* Delegate device lifecycle to HAL; input thread owns blocking input waits. */
+int input_init(void) {
+    int rc = hal_init();
+    if (rc != 0) return rc;
+
+    pthread_mutex_lock(&g_event_lock);
+    g_event_head = 0;
+    g_event_tail = 0;
+    g_input_thread_running = 1;
+    pthread_mutex_unlock(&g_event_lock);
+
+    if (pthread_create(&g_input_thread, NULL, input_thread_main, NULL) != 0) {
+        pthread_mutex_lock(&g_event_lock);
+        g_input_thread_running = 0;
+        pthread_mutex_unlock(&g_event_lock);
+        hal_shutdown();
+        return -1;
+    }
+
+    g_input_thread_started = 1;
+    return 0;
+}
+
+void input_deinit(void) {
+    pthread_mutex_lock(&g_event_lock);
+    g_input_thread_running = 0;
+    pthread_mutex_unlock(&g_event_lock);
+
+    if (g_input_thread_started) {
+        pthread_join(g_input_thread, NULL);
+        g_input_thread_started = 0;
+    }
+
+    hal_shutdown();
+}
 
 void input_set_key_callbacks(int key_code, void (*short_press)(void), void (*long_press)(void)) {
     int free_slot = -1;
@@ -64,6 +152,10 @@ void input_set_key_callbacks(int key_code, void (*short_press)(void), void (*lon
 
 void input_set_activity_callback(int (*activity)(void)) {
     g_activity_cb = activity;
+}
+
+void input_set_wheel_callback(int (*wheel)(int diff)) {
+    g_wheel_cb = wheel;
 }
 
 static struct key_binding *find_key_binding(int key_code) {
@@ -97,6 +189,7 @@ static int dispatch_key_binding(const struct hal_input_event *ev) {
         binding->pressed = 1;
         binding->long_fired = 0;
         binding->down_ms = ev->ts_ms ? ev->ts_ms : mono_ms_now();
+        audio_feedback_play(AUDIO_FEEDBACK_PRESS);
         if (binding->short_on_down && binding->short_cb) {
             binding->short_cb();
         }
@@ -118,15 +211,30 @@ static inline void dispatch_hal_event(const struct hal_input_event *ev) {
     if (g_activity_cb && g_activity_cb()) return;
 
     if (ev->type == EV_REL) {
+        int diff = 0;
 #ifdef REL_WHEEL
-        if (ev->code == REL_WHEEL) g_enc_diff += ev->value;
+        if (ev->code == REL_WHEEL) diff = ev->value;
 #endif
 #ifdef REL_DIAL
-        if (ev->code == REL_DIAL)  g_enc_diff += ev->value;
+        if (ev->code == REL_DIAL)  diff = ev->value;
 #endif
+        if (diff != 0) {
+            int step = diff > 0 ? 1 : -1;
+            int count = diff > 0 ? diff : -diff;
+            int consumed = 0;
+            for (int i = 0; i < count; ++i) {
+                if (g_wheel_cb && g_wheel_cb(step)) {
+                    consumed = 1;
+                } else {
+                    g_enc_diff += step;
+                }
+            }
+            if (consumed) return;
+        }
     } else if (ev->type == EV_KEY) {
         if (!dispatch_key_binding(ev)) {
             /* Existing behavior: non-Home keys drive encoder push semantics. */
+            if (ev->value == 1) audio_feedback_play(AUDIO_FEEDBACK_PRESS);
             g_btn_pressed = (ev->value != 0);
         }
     }
@@ -136,17 +244,17 @@ static inline void dispatch_hal_event(const struct hal_input_event *ev) {
     ha_session_note_activity();
 }
 
-/* LVGL v8 read callback: drain HAL events (non-blocking) and report state */
-void indev_encoder_read(lv_indev_drv_t *drv, lv_indev_data_t *data) {
-    (void)drv;
-
+void input_pump_events(void) {
     struct hal_input_event ev;
-    for (;;) {
-        int rc = hal_poll_input(&ev, 0);   /* non-blocking drain */
-        if (rc <= 0) break;                /* 0: none, <0: error */
+    while (event_queue_pop(&ev)) {
         dispatch_hal_event(&ev);
     }
     input_check_key_longpress();
+}
+
+/* LVGL v8 read callback: report already-dispatched encoder/button state. */
+void indev_encoder_read(lv_indev_drv_t *drv, lv_indev_data_t *data) {
+    (void)drv;
 
     int diff = g_enc_diff;
     g_enc_diff = 0;

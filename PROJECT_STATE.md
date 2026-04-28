@@ -58,6 +58,7 @@ Rules:
 - WiFi connected-state detection is owned by HAL via `hal_get_wifi()`; UI only renders the approved icon for the reported state.
 - Power/WiFi polling is cached by `status_cache` so blocking shell calls do not run in the UI/input path.
 - Home short action now fires on key-down; long Home still triggers emergency Exit. Current responsiveness is accepted for now, but still not Jive-level and should be revisited later.
+- Menu responsiveness issue was measured and corrected at `v0.8.12-phase-b-responsive-menu-audio`: the forced full-screen redraw timer was removed, input polling now runs in a dedicated thread, and menu/button audio feedback is isolated in `audio_feedback`. User verified menu response as near perfect and sound as stable.
 
 ---
 
@@ -129,6 +130,7 @@ Rules:
 - v0.8.3 — RosCard decision artifacts completed.
 - v0.8.7 — Phase B MVP config aligned to Light, Cover, Switch, Media Player.
 - v0.8.8 — Phase B UI shell, reusable long-press, and sleep behavior verified.
+- v0.8.12 — Responsive menu/audio correction verified.
 
 ---
 
