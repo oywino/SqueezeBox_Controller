@@ -50,6 +50,7 @@ Verified Phase B UI/runtime checkpoint:
 - Input layer supports reusable short/long press bindings for keypad keys.
 - Sleep behavior is active: BAT sleeps after about 30 seconds idle; AC stays awake past 30 seconds; key/wheel/accelerometer activity wakes the screen.
 - Menu input/audio responsiveness is hardware-verified at `v0.8.12-phase-b-responsive-menu-audio`: input polling is threaded, menu wheel selection works without the forced redraw bottleneck, and feedback sound is stable.
+- Audio feedback stability is improved at `v0.8.13-phase-b-audio-rate-wheel-coalesce`: playback uses the verified supported 22.05 kHz stereo S16_LE mode and slow-scroll beeps no longer break up.
 
 ## Exit criteria (Phase B done)
 

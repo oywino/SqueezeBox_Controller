@@ -16,6 +16,7 @@ static volatile int g_enc_diff    = 0;
 static volatile int g_btn_pressed = 0;
 static int (*g_activity_cb)(void) = 0;
 static int (*g_wheel_cb)(int diff) = 0;
+static int g_pending_menu_wheel = 0;
 
 #define INPUT_LONG_PRESS_MS 1000
 #define INPUT_MAX_KEY_BINDINGS 12
@@ -220,16 +221,10 @@ static inline void dispatch_hal_event(const struct hal_input_event *ev) {
 #endif
         if (diff != 0) {
             int step = diff > 0 ? 1 : -1;
-            int count = diff > 0 ? diff : -diff;
-            int consumed = 0;
-            for (int i = 0; i < count; ++i) {
-                if (g_wheel_cb && g_wheel_cb(step)) {
-                    consumed = 1;
-                } else {
-                    g_enc_diff += step;
-                }
+            if (g_wheel_cb && g_wheel_cb(step)) {
+                return;
             }
-            if (consumed) return;
+            g_enc_diff += step;
         }
     } else if (ev->type == EV_KEY) {
         if (!dispatch_key_binding(ev)) {
@@ -247,7 +242,36 @@ static inline void dispatch_hal_event(const struct hal_input_event *ev) {
 void input_pump_events(void) {
     struct hal_input_event ev;
     while (event_queue_pop(&ev)) {
+        if (ev.type == EV_REL) {
+            int diff = 0;
+#ifdef REL_WHEEL
+            if (ev.code == REL_WHEEL) diff = ev.value;
+#endif
+#ifdef REL_DIAL
+            if (ev.code == REL_DIAL)  diff = ev.value;
+#endif
+            if (diff != 0 && g_wheel_cb) {
+                g_pending_menu_wheel = diff > 0 ? 1 : -1;
+                continue;
+            }
+        }
         dispatch_hal_event(&ev);
+    }
+
+    if (g_pending_menu_wheel != 0) {
+        int step = g_pending_menu_wheel;
+        g_pending_menu_wheel = 0;
+        struct hal_input_event wheel_ev;
+        wheel_ev.source = HAL_INPUT_SRC_WHEEL;
+        wheel_ev.type = EV_REL;
+#ifdef REL_WHEEL
+        wheel_ev.code = REL_WHEEL;
+#else
+        wheel_ev.code = 0;
+#endif
+        wheel_ev.value = step;
+        wheel_ev.ts_ms = mono_ms_now();
+        dispatch_hal_event(&wheel_ev);
     }
     input_check_key_longpress();
 }

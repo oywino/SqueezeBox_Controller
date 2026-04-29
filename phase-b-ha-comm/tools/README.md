@@ -122,6 +122,7 @@ Verified runtime behavior:
 - Short Home opens/closes the placeholder left menu.
 - Wheel moves selection in the placeholder left menu.
 - Menu/button audio feedback is enabled and stable after removing the forced redraw bottleneck.
+- Audio feedback uses verified-supported `22050 Hz`, stereo, `S16_LE` hardware parameters.
 - Long Home performs emergency Exit and restores stock Jive.
 - On BAT, the screen sleeps after about 30 seconds idle.
 - On AC, the screen stays awake past 30 seconds.

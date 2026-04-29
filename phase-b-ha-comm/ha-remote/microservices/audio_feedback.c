@@ -9,7 +9,7 @@
 #include <time.h>
 
 #define PCM_DEVICE "hw:0,0"
-#define AUDIO_RATE 44100U
+#define AUDIO_RATE 22050U
 #define AUDIO_CHANNELS 2U
 #define FRAME_SAMPLES AUDIO_CHANNELS
 #define MOVE_MS 10U

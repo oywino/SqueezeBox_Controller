@@ -2,6 +2,15 @@
 
 ---
 
+## v0.8.13-phase-b-audio-rate-wheel-coalesce — 2026-04-29
+
+- No visual design change.
+- Reduced audio feedback playback from 44.1 kHz stereo 16-bit to 22.05 kHz stereo 16-bit after hardware probing confirmed that `hw:0,0` supports 22.05 kHz stereo S16_LE but rejects 8-bit and mono modes.
+- Coalesced excess wheel input to the latest direction so fast wheel movement cannot replay a backlog and skip visible menu rows.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified that slow menu scrolling no longer produces broken/choppy beeps.
+
+---
+
 ## v0.8.12-phase-b-responsive-menu-audio — 2026-04-28
 
 - No visual design change.
