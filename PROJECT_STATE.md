@@ -66,6 +66,7 @@ Rules:
 - Card focus/navigation is implemented at `v0.8.16-phase-b-card-focus-select-guard`: three cards are visible, wheel focus moves within the visible set before scrolling one card at the edge, no wrap is used, and rotary/select only toggles `switch.ikea_power_plug` when the Switch card is focused.
 - Card focus scroll sensitivity was reduced at `v0.8.17-phase-b-card-scroll-guard` by increasing the card-only scroll guard to 250 ms.
 - Switch card live-state rendering is hardware-verified at `v0.8.18-phase-b-switch-card-live-state`: the approved no-icon switch layout is used, and HA WebSocket `state_changed` events update the REST state cache and card toggle indicator.
+- Light card visual/live-state/action behavior is hardware-verified at `v0.8.19-phase-b-light-card-action`: the approved toggle layout is used for `Sov 2 Tak`, HA pushed state changes update the card, and rotary/select calls `light.toggle` when focused.
 - Verified Home Assistant base URL for current runtime/config is `http://192.168.1.8:8123`; startup REST state fetch logs `4/4 ok`.
 
 ---

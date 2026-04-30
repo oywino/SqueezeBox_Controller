@@ -162,8 +162,9 @@ static void set_card_slot(int slot)
 {
   int card_idx = g_card_top + slot;
   int active = (slot == g_card_focus);
+  int is_light = 0;
   int is_switch = 0;
-  int switch_on = 0;
+  int toggle_on = 0;
   const char *cached_state = NULL;
   uint32_t fill = active ? 0xF4F4F4 : 0xD8D8D8;
   uint32_t state_color = active ? 0x006DCC : 0x404040;
@@ -173,26 +174,27 @@ static void set_card_slot(int slot)
      !g_card_icons[slot] ||
      !g_card_toggle_tracks[slot] || !g_card_toggle_knobs[slot]) return;
 
+  is_light = strcmp(g_cards[card_idx].entity_id, "light.sov_2_tak") == 0;
   is_switch = strcmp(g_cards[card_idx].entity_id, "switch.ikea_power_plug") == 0;
 
   lv_obj_set_style_bg_color(g_card_panels[slot], lv_color_hex(fill), 0);
   lv_obj_set_style_text_color(g_card_titles[slot], lv_color_hex(0x101010), 0);
 
-  if(is_switch) {
+  if(is_light || is_switch) {
     cached_state = ha_rest_get_cached_state(g_cards[card_idx].entity_id);
-    switch_on = cached_state && strcmp(cached_state, "on") == 0;
+    toggle_on = cached_state && strcmp(cached_state, "on") == 0;
 
     lv_obj_add_flag(g_card_icons[slot], LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(g_card_toggle_tracks[slot], LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(g_card_toggle_knobs[slot], LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(g_card_titles[slot], "IKEA Power Plug");
+    lv_label_set_text(g_card_titles[slot], is_light ? "Sov 2 Tak" : "IKEA Power Plug");
     lv_obj_align(g_card_titles[slot], LV_ALIGN_LEFT_MID, 16, 0);
     lv_label_set_text(g_card_states[slot], "");
     lv_obj_add_flag(g_card_states[slot], LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_bg_color(g_card_toggle_tracks[slot],
-                              lv_color_hex(switch_on ? 0x006DCC : 0x8A8A8A),
+                              lv_color_hex(toggle_on ? 0x006DCC : 0x8A8A8A),
                               0);
-    lv_obj_set_x(g_card_toggle_knobs[slot], switch_on ? 18 : 2);
+    lv_obj_set_x(g_card_toggle_knobs[slot], toggle_on ? 18 : 2);
   } else {
     lv_obj_clear_flag(g_card_icons[slot], LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(g_card_toggle_tracks[slot], LV_OBJ_FLAG_HIDDEN);

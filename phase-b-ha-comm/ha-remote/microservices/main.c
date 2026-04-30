@@ -20,6 +20,8 @@
 #include "status_cache.h"
 
 #define ENCODER_PUSH_CODE 106
+#define MVP_LIGHT_ENTITY_ID "light.sov_2_tak"
+#define MVP_LIGHT_SERVICE "light.toggle"
 #define MVP_SWITCH_ENTITY_ID "switch.ikea_power_plug"
 #define MVP_SWITCH_SERVICE "switch.toggle"
 
@@ -134,15 +136,22 @@ static void start_ha_state_subscription(void)
     (void)ha_session_subscribe_state_changes(base_url, token);
 }
 
-static void toggle_mvp_switch(void)
+static void toggle_focused_binary_card(void)
 {
     const char *base_url;
     const char *token;
     char base_url_buf[128];
     char token_buf[256];
     const char *focused_entity = ui_focused_card_entity_id();
+    const char *service = NULL;
 
-    if (strcmp(focused_entity, MVP_SWITCH_ENTITY_ID) != 0) {
+    if (strcmp(focused_entity, MVP_LIGHT_ENTITY_ID) == 0) {
+        service = MVP_LIGHT_SERVICE;
+    } else if (strcmp(focused_entity, MVP_SWITCH_ENTITY_ID) == 0) {
+        service = MVP_SWITCH_SERVICE;
+    }
+
+    if (!service) {
         fprintf(stderr,
                 "[ha_action] select ignored: focused entity=%s\n",
                 focused_entity && *focused_entity ? focused_entity : "<none>");
@@ -152,7 +161,7 @@ static void toggle_mvp_switch(void)
     pthread_mutex_lock(&g_action_lock);
     if (g_action_in_flight) {
         pthread_mutex_unlock(&g_action_lock);
-        fprintf(stderr, "[ha_action] switch toggle ignored: action in flight\n");
+        fprintf(stderr, "[ha_action] toggle ignored: action in flight\n");
         return;
     }
     g_action_in_flight = 1;
@@ -167,8 +176,8 @@ static void toggle_mvp_switch(void)
 
     (void)ha_rest_call_service(base_url,
                                token,
-                               MVP_SWITCH_SERVICE,
-                               MVP_SWITCH_ENTITY_ID);
+                               service,
+                               focused_entity);
     ui_refresh_cards();
 
     pthread_mutex_lock(&g_action_lock);
@@ -227,7 +236,7 @@ int main(void)
 
     ui_init(grp);
     input_set_key_callbacks(KEY_HOME, ui_toggle_menu, ui_emergency_exit);
-    input_set_key_callbacks(ENCODER_PUSH_CODE, toggle_mvp_switch, NULL);
+    input_set_key_callbacks(ENCODER_PUSH_CODE, toggle_focused_binary_card, NULL);
     input_set_wheel_callback(ui_menu_wheel);
     input_set_activity_callback(input_activity);
 

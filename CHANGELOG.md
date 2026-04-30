@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.19-phase-b-light-card-action — 2026-05-01
+
+- Extended the approved toggle-card visual pattern to the Light card: `Sov 2 Tak` left-aligned with a right-side state-driven toggle indicator.
+- Light card now reflects live HA state changes through the existing WebSocket `state_changed` subscription and REST state cache.
+- Rotary/select now calls `light.toggle` for `light.sov_2_tak` when the Light card is focused.
+- Switch card behavior remains unchanged.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified Light state response and Select action.
+
+---
+
 ## v0.8.18-phase-b-switch-card-live-state — 2026-04-30
 
 - Updated the Switch card visual: no left icon, left-aligned `IKEA Power Plug` title, and a right-side toggle indicator.
