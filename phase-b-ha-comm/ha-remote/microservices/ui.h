@@ -18,6 +18,7 @@ void ui_toggle_menu(void);
 void ui_emergency_exit(void);
 int ui_menu_wheel(int diff);
 int ui_menu_is_visible(void);
+const char *ui_focused_card_entity_id(void);
 
 /* Backend → UI bridge for HA status updates. */
 void ui_status_set(const char *s, int connected, int have_states);

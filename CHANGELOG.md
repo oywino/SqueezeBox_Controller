@@ -2,6 +2,17 @@
 
 ---
 
+## v0.8.16-phase-b-card-focus-select-guard — 2026-04-30
+
+- Added the approved four-card MVP focus model: Light, Cover, Switch, Media.
+- Wheel focus now moves through the three visible cards first, then scrolls the card list by one card at the top/bottom edge.
+- Added card-scroll rate limiting to reduce jumpy focus movement while preserving no-wrap/no-skip behavior.
+- Guarded rotary/select push so the existing switch toggle only fires when `switch.ikea_power_plug` is the focused card.
+- Updated the config example HA base URL to the verified Home Assistant address `http://192.168.1.8:8123`.
+- Built and deployed to Squeezebox controller `192.168.1.65`; startup REST state fetch verified `4/4 ok`.
+
+---
+
 ## v0.8.15-phase-b-switch-action — 2026-04-30
 
 - No visual design change.

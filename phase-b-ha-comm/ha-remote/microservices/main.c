@@ -123,6 +123,14 @@ static void toggle_mvp_switch(void)
     const char *token;
     char base_url_buf[128];
     char token_buf[256];
+    const char *focused_entity = ui_focused_card_entity_id();
+
+    if (strcmp(focused_entity, MVP_SWITCH_ENTITY_ID) != 0) {
+        fprintf(stderr,
+                "[ha_action] select ignored: focused entity=%s\n",
+                focused_entity && *focused_entity ? focused_entity : "<none>");
+        return;
+    }
 
     pthread_mutex_lock(&g_action_lock);
     if (g_action_in_flight) {

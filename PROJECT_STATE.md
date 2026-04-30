@@ -63,6 +63,8 @@ Rules:
 - REST state fetch for the configured MVP entities is hardware-verified at `v0.8.14-phase-b-rest-states-sleep`; startup logs show current state for `light.sov_2_tak`, `cover.screen_sov_2`, `switch.ikea_power_plug`, and `media_player.squeezebox_boom`.
 - Sleep/backlight behavior is hardware-verified at `v0.8.14-phase-b-rest-states-sleep`: LCD/backlight turns fully off, key press wakes it, shake wakes it, and Jive does not appear mixed with the HA UI.
 - First HA service-call action is hardware-verified at `v0.8.15-phase-b-switch-action`: rotary/select push toggles `switch.ikea_power_plug`, and the runtime log shows the service call plus refreshed switch state.
+- Card focus/navigation is implemented at `v0.8.16-phase-b-card-focus-select-guard`: three cards are visible, wheel focus moves within the visible set before scrolling one card at the edge, no wrap is used, and rotary/select only toggles `switch.ikea_power_plug` when the Switch card is focused.
+- Verified Home Assistant base URL for current runtime/config is `http://192.168.1.8:8123`; startup REST state fetch logs `4/4 ok`.
 
 ---
 

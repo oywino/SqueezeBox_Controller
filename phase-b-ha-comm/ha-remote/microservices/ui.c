@@ -27,13 +27,25 @@
 #define MENU_Y (MAIN_Y + 10)
 #define MENU_H 188
 #define MENU_ROW_COUNT 5
+#define CARD_COUNT 4
+#define CARD_VISIBLE_COUNT 3
+#define CARD_H 70
+#define CARD_Y0 8
+#define CARD_STEP 78
+#define CARD_SCROLL_MIN_MS 130
 
 static int g_should_exit = 0;
 static int g_menu_visible = 0;
 static int g_menu_selected = 0;
+static int g_card_top = 0;
+static int g_card_focus = 0;
+static uint64_t g_last_card_scroll_ms = 0;
 static lv_obj_t *g_wifi_img = NULL;
 static lv_obj_t *g_time_label = NULL;
 static lv_obj_t *g_power_img = NULL;
+static lv_obj_t *g_card_panels[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_card_titles[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_card_states[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_menu_panel = NULL;
 static lv_obj_t *g_menu_rows[MENU_ROW_COUNT] = { NULL };
 static lv_obj_t *g_menu_labels[MENU_ROW_COUNT] = { NULL };
@@ -43,6 +55,18 @@ static lv_font_t *g_font_menu_sel = NULL;
 static lv_font_t *g_font_title = NULL;
 static lv_font_t *g_font_state = NULL;
 static lv_font_t *g_font_small = NULL;
+
+struct ui_card_def {
+  const char *title;
+  const char *entity_id;
+};
+
+static const struct ui_card_def g_cards[CARD_COUNT] = {
+  { "Light", "light.sov_2_tak" },
+  { "Cover", "cover.screen_sov_2" },
+  { "Switch", "switch.ikea_power_plug" },
+  { "Media", "media_player.squeezebox_boom" }
+};
 
 static uint64_t ms_now(void)
 {
@@ -130,23 +154,50 @@ static void init_fonts(void)
   g_font_small = lv_tiny_ttf_create_data(jive_freesans_bold_ttf, jive_freesans_bold_ttf_size, 12);
 }
 
-static void build_card(lv_obj_t *main_area, lv_coord_t y, const char *title,
-                       const char *state, int active)
+static void set_card_slot(int slot)
 {
-  lv_obj_t *card = make_panel(main_area, 8, y, MAIN_W - 16, 70,
-                              active ? 0xF4F4F4 : 0xD8D8D8, 8);
+  int card_idx = g_card_top + slot;
+  int active = (slot == g_card_focus);
+  uint32_t fill = active ? 0xF4F4F4 : 0xD8D8D8;
+  uint32_t state_color = active ? 0x006DCC : 0x404040;
+
+  if(slot < 0 || slot >= CARD_VISIBLE_COUNT || card_idx >= CARD_COUNT) return;
+  if(!g_card_panels[slot] || !g_card_titles[slot] || !g_card_states[slot]) return;
+
+  lv_obj_set_style_bg_color(g_card_panels[slot], lv_color_hex(fill), 0);
+  lv_label_set_text(g_card_titles[slot], g_cards[card_idx].title);
+  lv_label_set_text(g_card_states[slot], g_cards[card_idx].entity_id);
+  lv_obj_set_style_text_color(g_card_states[slot], lv_color_hex(state_color), 0);
+}
+
+static void refresh_cards(void)
+{
+  for(int i = 0; i < CARD_VISIBLE_COUNT; ++i) {
+    set_card_slot(i);
+  }
+}
+
+static void build_card_slot(lv_obj_t *main_area, int slot)
+{
+  lv_obj_t *card = make_panel(main_area, 8, CARD_Y0 + slot * CARD_STEP,
+                              MAIN_W - 16, CARD_H, 0xD8D8D8, 8);
 
   lv_obj_t *icon = make_label(card, LV_SYMBOL_HOME, 0x101010);
   set_label_font(icon, g_font_title);
   lv_obj_align(icon, LV_ALIGN_LEFT_MID, 12, 0);
 
-  lv_obj_t *name = make_label(card, title, 0x101010);
+  lv_obj_t *name = make_label(card, "", 0x101010);
   set_label_font(name, g_font_title);
   lv_obj_align(name, LV_ALIGN_TOP_LEFT, 46, 14);
 
-  lv_obj_t *value = make_label(card, state, active ? 0x006DCC : 0x404040);
+  lv_obj_t *value = make_label(card, "", 0x404040);
   set_label_font(value, g_font_state);
   lv_obj_align(value, LV_ALIGN_TOP_LEFT, 46, 38);
+
+  g_card_panels[slot] = card;
+  g_card_titles[slot] = name;
+  g_card_states[slot] = value;
+  set_card_slot(slot);
 }
 
 static void set_menu_row_selected(int idx, int selected)
@@ -230,6 +281,14 @@ void ui_init(lv_group_t *grp)
   g_should_exit = 0;
   g_menu_visible = 0;
   g_menu_selected = 0;
+  g_card_top = 0;
+  g_card_focus = 0;
+  g_last_card_scroll_ms = 0;
+  for(int i = 0; i < CARD_VISIBLE_COUNT; ++i) {
+    g_card_panels[i] = NULL;
+    g_card_titles[i] = NULL;
+    g_card_states[i] = NULL;
+  }
   for(int i = 0; i < MENU_ROW_COUNT; ++i) {
     g_menu_rows[i] = NULL;
     g_menu_labels[i] = NULL;
@@ -255,9 +314,9 @@ void ui_init(lv_group_t *grp)
   lv_obj_align(g_power_img, LV_ALIGN_RIGHT_MID, -8, 0);
 
   lv_obj_t *main_area = make_panel(scr, MAIN_X, MAIN_Y, MAIN_W, MAIN_H, 0x404040, 8);
-  build_card(main_area, 8, "Living Room", "On", 1);
-  build_card(main_area, 86, "Media", "Paused", 0);
-  build_card(main_area, 164, "Cover", "Closed", 0);
+  build_card_slot(main_area, 0);
+  build_card_slot(main_area, 1);
+  build_card_slot(main_area, 2);
 
   lv_obj_t *footer = make_panel(scr, 0, FOOTER_Y, SCREEN_W, FOOTER_H, 0x000000, 0);
   lv_obj_t *hint = make_label(footer, "Home: Menu", 0xFFFFFF);
@@ -284,7 +343,39 @@ void ui_toggle_menu(void)
 
 int ui_menu_wheel(int diff)
 {
-  if(!g_menu_visible || diff == 0) return 0;
+  if(diff == 0) return 0;
+
+  if(!g_menu_visible) {
+    int old_top = g_card_top;
+    int old_focus = g_card_focus;
+    int selected = g_card_top + g_card_focus;
+    uint64_t now = ms_now();
+
+    if(g_last_card_scroll_ms != 0 && now - g_last_card_scroll_ms < CARD_SCROLL_MIN_MS) {
+      return 1;
+    }
+
+    if(diff > 0 && selected < CARD_COUNT - 1) {
+      if(g_card_focus < CARD_VISIBLE_COUNT - 1) {
+        g_card_focus++;
+      } else {
+        g_card_top++;
+      }
+    } else if(diff < 0 && selected > 0) {
+      if(g_card_focus > 0) {
+        g_card_focus--;
+      } else {
+        g_card_top--;
+      }
+    }
+
+    if(g_card_top != old_top || g_card_focus != old_focus) {
+      g_last_card_scroll_ms = now;
+      refresh_cards();
+      audio_feedback_play(AUDIO_FEEDBACK_MOVE);
+    }
+    return 1;
+  }
 
   int old_selected = g_menu_selected;
   set_menu_selected(g_menu_selected + (diff > 0 ? 1 : -1));
@@ -295,6 +386,13 @@ int ui_menu_wheel(int diff)
 int ui_menu_is_visible(void)
 {
   return g_menu_visible ? 1 : 0;
+}
+
+const char *ui_focused_card_entity_id(void)
+{
+  int idx = g_card_top + g_card_focus;
+  if(idx < 0 || idx >= CARD_COUNT) return "";
+  return g_cards[idx].entity_id;
 }
 
 void ui_emergency_exit(void)
