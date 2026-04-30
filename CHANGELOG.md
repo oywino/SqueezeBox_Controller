@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.18-phase-b-switch-card-live-state — 2026-04-30
+
+- Updated the Switch card visual: no left icon, left-aligned `IKEA Power Plug` title, and a right-side toggle indicator.
+- Toggle indicator now follows binary switch state: `on` = blue track with knob right, `off` = grey track with knob left.
+- Added persistent Home Assistant WebSocket `state_changed` subscription for configured entities.
+- Added REST state cache update support so pushed HA state changes can update the visible Switch card without polling.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified switch-card state response works correctly.
+
+---
+
 ## v0.8.17-phase-b-card-scroll-guard — 2026-04-30
 
 - No visual design change.

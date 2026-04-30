@@ -15,6 +15,7 @@ int ha_rest_call_service(const char *base_url,
                          const char *service,
                          const char *entity_id);
 const char *ha_rest_get_cached_state(const char *entity_id);
+void ha_rest_set_cached_state(const char *entity_id, const char *state);
 size_t ha_rest_get_cached_count(void);
 
 #ifdef __cplusplus

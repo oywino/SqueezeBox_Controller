@@ -9,6 +9,9 @@ void ha_ws_seed(uint32_t seed);
 /* Start a short-lived HA WebSocket session (connect, handshake, auth, get_states). */
 int  ha_session_start(const char *host, const char *token);
 
+/* Start persistent HA state_changed subscription for configured entities. */
+int ha_session_subscribe_state_changes(const char *base_url, const char *token);
+
 /* Backend poll tick: invoked by UI wrapper timer. */
 void ha_poll_timer(void);
 

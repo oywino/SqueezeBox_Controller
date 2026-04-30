@@ -6,6 +6,7 @@
 
 #include "ui.h"
 #include "audio_feedback.h"
+#include "ha_rest.h"
 #include "status_cache.h"
 #include "ha_ws.h"
 #include "assets/jive_assets.h"
@@ -44,8 +45,11 @@ static lv_obj_t *g_wifi_img = NULL;
 static lv_obj_t *g_time_label = NULL;
 static lv_obj_t *g_power_img = NULL;
 static lv_obj_t *g_card_panels[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_card_icons[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_card_titles[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_card_states[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_card_toggle_tracks[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_card_toggle_knobs[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_menu_panel = NULL;
 static lv_obj_t *g_menu_rows[MENU_ROW_COUNT] = { NULL };
 static lv_obj_t *g_menu_labels[MENU_ROW_COUNT] = { NULL };
@@ -158,16 +162,49 @@ static void set_card_slot(int slot)
 {
   int card_idx = g_card_top + slot;
   int active = (slot == g_card_focus);
+  int is_switch = 0;
+  int switch_on = 0;
+  const char *cached_state = NULL;
   uint32_t fill = active ? 0xF4F4F4 : 0xD8D8D8;
   uint32_t state_color = active ? 0x006DCC : 0x404040;
 
   if(slot < 0 || slot >= CARD_VISIBLE_COUNT || card_idx >= CARD_COUNT) return;
-  if(!g_card_panels[slot] || !g_card_titles[slot] || !g_card_states[slot]) return;
+  if(!g_card_panels[slot] || !g_card_titles[slot] || !g_card_states[slot] ||
+     !g_card_icons[slot] ||
+     !g_card_toggle_tracks[slot] || !g_card_toggle_knobs[slot]) return;
+
+  is_switch = strcmp(g_cards[card_idx].entity_id, "switch.ikea_power_plug") == 0;
 
   lv_obj_set_style_bg_color(g_card_panels[slot], lv_color_hex(fill), 0);
-  lv_label_set_text(g_card_titles[slot], g_cards[card_idx].title);
-  lv_label_set_text(g_card_states[slot], g_cards[card_idx].entity_id);
-  lv_obj_set_style_text_color(g_card_states[slot], lv_color_hex(state_color), 0);
+  lv_obj_set_style_text_color(g_card_titles[slot], lv_color_hex(0x101010), 0);
+
+  if(is_switch) {
+    cached_state = ha_rest_get_cached_state(g_cards[card_idx].entity_id);
+    switch_on = cached_state && strcmp(cached_state, "on") == 0;
+
+    lv_obj_add_flag(g_card_icons[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(g_card_toggle_tracks[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(g_card_toggle_knobs[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(g_card_titles[slot], "IKEA Power Plug");
+    lv_obj_align(g_card_titles[slot], LV_ALIGN_LEFT_MID, 16, 0);
+    lv_label_set_text(g_card_states[slot], "");
+    lv_obj_add_flag(g_card_states[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_bg_color(g_card_toggle_tracks[slot],
+                              lv_color_hex(switch_on ? 0x006DCC : 0x8A8A8A),
+                              0);
+    lv_obj_set_x(g_card_toggle_knobs[slot], switch_on ? 18 : 2);
+  } else {
+    lv_obj_clear_flag(g_card_icons[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_card_toggle_tracks[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_card_toggle_knobs[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(g_card_icons[slot], LV_SYMBOL_HOME);
+    lv_obj_set_style_text_color(g_card_icons[slot], lv_color_hex(0x101010), 0);
+    lv_label_set_text(g_card_titles[slot], g_cards[card_idx].title);
+    lv_obj_align(g_card_titles[slot], LV_ALIGN_TOP_LEFT, 46, 14);
+    lv_obj_clear_flag(g_card_states[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(g_card_states[slot], g_cards[card_idx].entity_id);
+    lv_obj_set_style_text_color(g_card_states[slot], lv_color_hex(state_color), 0);
+  }
 }
 
 static void refresh_cards(void)
@@ -188,15 +225,27 @@ static void build_card_slot(lv_obj_t *main_area, int slot)
 
   lv_obj_t *name = make_label(card, "", 0x101010);
   set_label_font(name, g_font_title);
+  lv_obj_set_width(name, 140);
+  lv_label_set_long_mode(name, LV_LABEL_LONG_CLIP);
   lv_obj_align(name, LV_ALIGN_TOP_LEFT, 46, 14);
 
   lv_obj_t *value = make_label(card, "", 0x404040);
   set_label_font(value, g_font_state);
+  lv_obj_set_width(value, 150);
+  lv_label_set_long_mode(value, LV_LABEL_LONG_CLIP);
   lv_obj_align(value, LV_ALIGN_TOP_LEFT, 46, 38);
 
+  lv_obj_t *toggle = make_panel(card, 164, 24, 36, 20, 0x006DCC, 10);
+  lv_obj_t *knob = make_panel(toggle, 18, 2, 16, 16, 0xFFFFFF, 8);
+  lv_obj_add_flag(toggle, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(knob, LV_OBJ_FLAG_HIDDEN);
+
   g_card_panels[slot] = card;
+  g_card_icons[slot] = icon;
   g_card_titles[slot] = name;
   g_card_states[slot] = value;
+  g_card_toggle_tracks[slot] = toggle;
+  g_card_toggle_knobs[slot] = knob;
   set_card_slot(slot);
 }
 
@@ -286,8 +335,11 @@ void ui_init(lv_group_t *grp)
   g_last_card_scroll_ms = 0;
   for(int i = 0; i < CARD_VISIBLE_COUNT; ++i) {
     g_card_panels[i] = NULL;
+    g_card_icons[i] = NULL;
     g_card_titles[i] = NULL;
     g_card_states[i] = NULL;
+    g_card_toggle_tracks[i] = NULL;
+    g_card_toggle_knobs[i] = NULL;
   }
   for(int i = 0; i < MENU_ROW_COUNT; ++i) {
     g_menu_rows[i] = NULL;
@@ -386,6 +438,11 @@ int ui_menu_wheel(int diff)
 int ui_menu_is_visible(void)
 {
   return g_menu_visible ? 1 : 0;
+}
+
+void ui_refresh_cards(void)
+{
+  refresh_cards();
 }
 
 const char *ui_focused_card_entity_id(void)

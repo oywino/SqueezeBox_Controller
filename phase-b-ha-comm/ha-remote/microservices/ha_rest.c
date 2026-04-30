@@ -425,6 +425,23 @@ const char *ha_rest_get_cached_state(const char *entity_id)
     return NULL;
 }
 
+void ha_rest_set_cached_state(const char *entity_id, const char *state)
+{
+    ha_rest_cached_state_t *slot;
+
+    if (!entity_id || !*entity_id || !state) {
+        return;
+    }
+
+    slot = ha_rest_cache_slot(entity_id);
+    if (!slot) {
+        return;
+    }
+
+    snprintf(slot->state, sizeof(slot->state), "%s", state);
+    slot->valid = 1;
+}
+
 size_t ha_rest_get_cached_count(void)
 {
     return g_state_count;

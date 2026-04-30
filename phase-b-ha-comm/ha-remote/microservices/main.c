@@ -117,6 +117,23 @@ static void fetch_configured_ha_states(void)
     (void)ha_rest_fetch_configured_states(base_url, token);
 }
 
+static void start_ha_state_subscription(void)
+{
+    const char *base_url;
+    const char *token;
+    char base_url_buf[128];
+    char token_buf[256];
+
+    resolve_ha_connection(base_url_buf,
+                          sizeof(base_url_buf),
+                          token_buf,
+                          sizeof(token_buf),
+                          &base_url,
+                          &token);
+
+    (void)ha_session_subscribe_state_changes(base_url, token);
+}
+
 static void toggle_mvp_switch(void)
 {
     const char *base_url;
@@ -152,6 +169,7 @@ static void toggle_mvp_switch(void)
                                token,
                                MVP_SWITCH_SERVICE,
                                MVP_SWITCH_ENTITY_ID);
+    ui_refresh_cards();
 
     pthread_mutex_lock(&g_action_lock);
     g_action_in_flight = 0;
@@ -219,6 +237,8 @@ int main(void)
 
     if (config_loaded) {
         fetch_configured_ha_states();
+        ui_refresh_cards();
+        start_ha_state_subscription();
     }
 
     lv_timer_create(ha_poll_timer_cb, 100, NULL);
