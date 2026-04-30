@@ -18,6 +18,7 @@
 #define PRESS_HZ 1450U
 #define STREAM_IDLE_MS 2000ULL
 #define STREAM_CHUNK_FRAMES 128U
+#define STREAM_BUFFER_TIME_US 80000U
 
 struct beep {
     int16_t *pcm;
@@ -34,6 +35,20 @@ static uint64_t g_last_request_ms = 0;
 static snd_pcm_t *g_pcm = NULL;
 static struct beep g_move;
 static struct beep g_press;
+
+static void alsa_quiet_error_handler(const char *file,
+                                     int line,
+                                     const char *function,
+                                     int err,
+                                     const char *fmt,
+                                     ...)
+{
+    (void)file;
+    (void)line;
+    (void)function;
+    (void)err;
+    (void)fmt;
+}
 
 static uint64_t ms_now(void)
 {
@@ -106,7 +121,7 @@ static int pcm_open_configured(void)
     rc = snd_pcm_hw_params_set_periods_near(g_pcm, hw, &periods, 0);
     if (rc < 0) return rc;
 
-    unsigned int buffer_time = 30000;
+    unsigned int buffer_time = STREAM_BUFFER_TIME_US;
     rc = snd_pcm_hw_params_set_buffer_time_near(g_pcm, hw, &buffer_time, 0);
     if (rc < 0) return rc;
 
@@ -225,6 +240,8 @@ static void *audio_worker(void *arg)
 
 int audio_feedback_start(void)
 {
+    snd_lib_error_set_handler(alsa_quiet_error_handler);
+
     if (beep_make(&g_move, MOVE_HZ, MOVE_MS) != 0) return -1;
     if (beep_make(&g_press, PRESS_HZ, PRESS_MS) != 0) {
         beep_free(&g_move);

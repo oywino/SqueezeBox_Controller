@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.15-phase-b-switch-action — 2026-04-30
+
+- No visual design change.
+- Added the first HA service-call action: rotary/select push calls `switch.toggle` for `switch.ikea_power_plug`.
+- Reuses the REST HA connection path and refreshes/logs the switch state after the service call.
+- Suppressed ALSA library underrun noise in the runtime log and increased audio stream buffer headroom.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified normal switch-toggle interaction works.
+
+---
+
 ## v0.8.14-phase-b-rest-states-sleep — 2026-04-30
 
 - No visual design change.

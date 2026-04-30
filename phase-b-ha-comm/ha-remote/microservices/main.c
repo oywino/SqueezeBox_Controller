@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/input.h>
+#include <pthread.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -17,6 +18,13 @@
 #include "hal.h"
 #include "power_manager.h"
 #include "status_cache.h"
+
+#define ENCODER_PUSH_CODE 106
+#define MVP_SWITCH_ENTITY_ID "switch.ikea_power_plug"
+#define MVP_SWITCH_SERVICE "switch.toggle"
+
+static pthread_mutex_t g_action_lock = PTHREAD_MUTEX_INITIALIZER;
+static int g_action_in_flight = 0;
 
 static uint64_t ms_now(void)
 {
@@ -62,32 +70,84 @@ static int read_token_file(const char *path, char *out, size_t out_size)
     return len > 0;
 }
 
-static void fetch_configured_ha_states(void)
+static void resolve_ha_connection(char *base_url_buf,
+                                  size_t base_url_buf_size,
+                                  char *token_buf,
+                                  size_t token_buf_size,
+                                  const char **base_url,
+                                  const char **token)
 {
     const char *ha_host = getenv("HA_HOST");
     const char *ha_token_env = getenv("HA_TOKEN");
-    const char *base_url = ha_config_get_ha_base_url();
-    const char *token = ha_config_get_ha_access_token();
-    char base_url_buf[128];
-    char token_buf[256];
+
+    *base_url = ha_config_get_ha_base_url();
+    *token = ha_config_get_ha_access_token();
 
     if (ha_host && *ha_host) {
-        snprintf(base_url_buf, sizeof(base_url_buf), "http://%s:8123", ha_host);
-        base_url = base_url_buf;
+        snprintf(base_url_buf, base_url_buf_size, "http://%s:8123", ha_host);
+        *base_url = base_url_buf;
     }
 
     if (ha_token_env && *ha_token_env) {
-        token = ha_token_env;
-    } else if (token_is_placeholder(token)) {
-        if (read_token_file("HA_LL_Token.txt", token_buf, sizeof(token_buf)) ||
+        *token = ha_token_env;
+    } else if (token_is_placeholder(*token)) {
+        if (read_token_file("HA_LL_Token.txt", token_buf, token_buf_size) ||
             read_token_file("/mnt/storage/phase-a-lvgl/HA_LL_Token.txt",
                             token_buf,
-                            sizeof(token_buf))) {
-            token = token_buf;
+                            token_buf_size)) {
+            *token = token_buf;
         }
     }
+}
+
+static void fetch_configured_ha_states(void)
+{
+    const char *base_url;
+    const char *token;
+    char base_url_buf[128];
+    char token_buf[256];
+
+    resolve_ha_connection(base_url_buf,
+                          sizeof(base_url_buf),
+                          token_buf,
+                          sizeof(token_buf),
+                          &base_url,
+                          &token);
 
     (void)ha_rest_fetch_configured_states(base_url, token);
+}
+
+static void toggle_mvp_switch(void)
+{
+    const char *base_url;
+    const char *token;
+    char base_url_buf[128];
+    char token_buf[256];
+
+    pthread_mutex_lock(&g_action_lock);
+    if (g_action_in_flight) {
+        pthread_mutex_unlock(&g_action_lock);
+        fprintf(stderr, "[ha_action] switch toggle ignored: action in flight\n");
+        return;
+    }
+    g_action_in_flight = 1;
+    pthread_mutex_unlock(&g_action_lock);
+
+    resolve_ha_connection(base_url_buf,
+                          sizeof(base_url_buf),
+                          token_buf,
+                          sizeof(token_buf),
+                          &base_url,
+                          &token);
+
+    (void)ha_rest_call_service(base_url,
+                               token,
+                               MVP_SWITCH_SERVICE,
+                               MVP_SWITCH_ENTITY_ID);
+
+    pthread_mutex_lock(&g_action_lock);
+    g_action_in_flight = 0;
+    pthread_mutex_unlock(&g_action_lock);
 }
 
 int main(void)
@@ -141,6 +201,7 @@ int main(void)
 
     ui_init(grp);
     input_set_key_callbacks(KEY_HOME, ui_toggle_menu, ui_emergency_exit);
+    input_set_key_callbacks(ENCODER_PUSH_CODE, toggle_mvp_switch, NULL);
     input_set_wheel_callback(ui_menu_wheel);
     input_set_activity_callback(input_activity);
 

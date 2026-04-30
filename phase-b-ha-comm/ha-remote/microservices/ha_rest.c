@@ -310,6 +310,105 @@ int ha_rest_fetch_configured_states(const char *base_url, const char *token)
     return ok_count == (int)count;
 }
 
+int ha_rest_call_service(const char *base_url,
+                         const char *token,
+                         const char *service,
+                         const char *entity_id)
+{
+    ha_rest_url_t url;
+    char domain[32];
+    char service_name[32];
+    const char *dot;
+    size_t domain_len;
+    int fd;
+    int n;
+    char body[160];
+    char req[1024];
+    char response[8192];
+
+    if (!ha_rest_parse_base_url(base_url, &url)) {
+        fprintf(stderr, "[ha_rest] service call skipped: bad base_url\n");
+        return 0;
+    }
+    if (!token || !*token || !service || !entity_id || !*entity_id) {
+        fprintf(stderr, "[ha_rest] service call skipped: missing input\n");
+        return 0;
+    }
+
+    dot = strchr(service, '.');
+    if (!dot || dot == service || !dot[1]) {
+        fprintf(stderr, "[ha_rest] service call skipped: bad service=%s\n", service);
+        return 0;
+    }
+
+    domain_len = (size_t)(dot - service);
+    if (domain_len >= sizeof(domain) || strlen(dot + 1) >= sizeof(service_name)) {
+        fprintf(stderr, "[ha_rest] service call skipped: service too long\n");
+        return 0;
+    }
+    memcpy(domain, service, domain_len);
+    domain[domain_len] = '\0';
+    snprintf(service_name, sizeof(service_name), "%s", dot + 1);
+
+    n = snprintf(body, sizeof(body), "{\"entity_id\":\"%s\"}", entity_id);
+    if (n <= 0 || n >= (int)sizeof(body)) {
+        fprintf(stderr, "[ha_rest] service call skipped: body too long\n");
+        return 0;
+    }
+
+    fd = ws_tcp_connect(url.host, url.port);
+    if (fd < 0) {
+        fprintf(stderr, "[ha_rest] %s service call failed: connect\n", service);
+        return 0;
+    }
+
+    n = snprintf(req, sizeof(req),
+                 "POST /api/services/%s/%s HTTP/1.1\r\n"
+                 "Host: %s:%s\r\n"
+                 "Authorization: Bearer %s\r\n"
+                 "Content-Type: application/json\r\n"
+                 "Accept: application/json\r\n"
+                 "Content-Length: %lu\r\n"
+                 "Connection: close\r\n"
+                 "\r\n"
+                 "%s",
+                 domain,
+                 service_name,
+                 url.host,
+                 url.port,
+                 token,
+                 (unsigned long)strlen(body),
+                 body);
+    if (n <= 0 || n >= (int)sizeof(req) ||
+        !ha_rest_send_all(fd, req, (size_t)n)) {
+        fprintf(stderr, "[ha_rest] %s service call failed: send\n", service);
+        close(fd);
+        return 0;
+    }
+
+    if (!ha_rest_read_response(fd, response, sizeof(response))) {
+        fprintf(stderr, "[ha_rest] %s service call failed: read\n", service);
+        close(fd);
+        return 0;
+    }
+    close(fd);
+
+    if (strncmp(response, "HTTP/1.1 200", 12) != 0 &&
+        strncmp(response, "HTTP/1.0 200", 12) != 0 &&
+        strncmp(response, "HTTP/1.1 201", 12) != 0 &&
+        strncmp(response, "HTTP/1.0 201", 12) != 0) {
+        fprintf(stderr, "[ha_rest] %s service call failed: HTTP status\n", service);
+        return 0;
+    }
+
+    fprintf(stderr,
+            "[ha_rest] service call ok: %s entity_id=%s\n",
+            service,
+            entity_id);
+    (void)ha_rest_fetch_entity(&url, token, entity_id);
+    return 1;
+}
+
 const char *ha_rest_get_cached_state(const char *entity_id)
 {
     size_t i;

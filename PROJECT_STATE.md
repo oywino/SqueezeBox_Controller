@@ -62,6 +62,7 @@ Rules:
 - Audio feedback now runs at 22.05 kHz stereo S16_LE and excess wheel input is coalesced to the latest direction at `v0.8.13-phase-b-audio-rate-wheel-coalesce`; user verified broken slow-scroll beeps are gone.
 - REST state fetch for the configured MVP entities is hardware-verified at `v0.8.14-phase-b-rest-states-sleep`; startup logs show current state for `light.sov_2_tak`, `cover.screen_sov_2`, `switch.ikea_power_plug`, and `media_player.squeezebox_boom`.
 - Sleep/backlight behavior is hardware-verified at `v0.8.14-phase-b-rest-states-sleep`: LCD/backlight turns fully off, key press wakes it, shake wakes it, and Jive does not appear mixed with the HA UI.
+- First HA service-call action is hardware-verified at `v0.8.15-phase-b-switch-action`: rotary/select push toggles `switch.ikea_power_plug`, and the runtime log shows the service call plus refreshed switch state.
 
 ---
 
@@ -101,6 +102,8 @@ Rules:
 - [ ] **Step 10. State cache + rate limiting** — pending.
 
 - [ ] **Step 11. Service call pipeline** — pending.
+  
+  First action verified: `switch.toggle` for `switch.ikea_power_plug` on rotary/select push. Remaining MVP actions are pending.
 
 - [ ] **Step 12. Minimal demo UI (PoC)** — pending.
 
