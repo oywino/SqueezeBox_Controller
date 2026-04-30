@@ -112,11 +112,17 @@ Verified Phase B UI/runtime checkpoint:
   - Artifact trail: `v0.8.1-roscard-decision-criteria-verified`, `v0.8.2-roscard-mapping-skeleton-verified`, `v0.8.3-roscard-decision-complete`.
   - Outputs: `phase-b-ha-comm/docs/roscard_decision.md`, `phase-b-ha-comm/docs/roscard_scoring.md`, `phase-b-ha-comm/docs/roscard_mapping_table.md`, `phase-b-ha-comm/ha-remote/microservices/config/config.example.json`, `phase-b-ha-comm/include/roscard_adapter.h`, evidence dir placeholder.
 
-- [ ] **Step 9. HA connection layer (WebSocket + LLAT)**  
-  LLAT connect with banner; auth failure handling; fetch initial states for configured entities; activity-fed keepalive.
+- [ ] **Step 9. HA connection layer (REST state fetch + WebSocket service calls)**  
+  REST initial-state fetch is verified for configured MVP entities via `GET /api/states/<entity_id>` using LLAT; do not use WebSocket `get_states` for normal operation because it returns all entities. WebSocket service calls remain pending.
+
+  MVP configured entities:
+  - `light.sov_2_tak`
+  - `cover.screen_sov_2`
+  - `switch.ikea_power_plug`
+  - `media_player.squeezebox_boom`
 
 - [ ] **Step 10. State cache + rate limiting**  
-  Cache only configured entities; apply event patches; redraw only changed regions; enforce per-domain rate caps.
+  Cache only configured entities; apply event patches or REST refreshes only for configured entity IDs; redraw only changed regions; enforce per-domain rate caps.
 
 - [ ] **Step 11. Service call pipeline**  
   Wire demo card actions to concrete HA services; success/error feedback; basic retries.

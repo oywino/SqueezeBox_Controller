@@ -20,6 +20,7 @@ ALSA_PREFIX="../../.deps/alsa-armv5"
    microservices/assets/jive_assets.c \
    microservices/ui.c \
    microservices/ha_config.c \
+   microservices/ha_rest.c \
    microservices/ha_ws.c \
    microservices/ws_io.c \
    microservices/stockui.c \

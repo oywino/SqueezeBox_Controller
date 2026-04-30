@@ -7,12 +7,15 @@
 #include "ha_config.h"
 
 #define HA_CONFIG_DEFAULT_PATH "config.example.json"
+#define HA_CONFIG_RUNTIME_PATH "/mnt/storage/phase-a-lvgl/config.example.json"
 
 static ha_config_card_t g_cards[HA_CONFIG_MAX_CARDS];
 static size_t g_card_count = 0;
 
 static char g_tracked_entities[HA_CONFIG_MAX_TRACKED_ENTITIES][64];
 static size_t g_tracked_entity_count = 0;
+static char g_ha_base_url[HA_CONFIG_MAX_BASE_URL];
+static char g_ha_access_token[HA_CONFIG_MAX_ACCESS_TOKEN];
 
 /* ---------- internal helpers ---------- */
 
@@ -22,6 +25,8 @@ static void ha_config_reset(void)
     g_card_count = 0;
     memset(g_tracked_entities, 0, sizeof(g_tracked_entities));
     g_tracked_entity_count = 0;
+    memset(g_ha_base_url, 0, sizeof(g_ha_base_url));
+    memset(g_ha_access_token, 0, sizeof(g_ha_access_token));
 }
 
 static void ha_config_skip_ws(const char **p)
@@ -574,8 +579,6 @@ static int ha_config_parse_cards_array(const char **p)
     }
     ha_config_skip_ws(p);
 
-    ha_config_reset();
-
     while (**p && **p != ']') {
         if (g_card_count >= HA_CONFIG_MAX_CARDS) {
             fprintf(stderr,
@@ -610,6 +613,61 @@ static int ha_config_parse_cards_array(const char **p)
     return 1;
 }
 
+static int ha_config_parse_home_assistant_object(const char **p)
+{
+    if (!ha_config_expect_char(p, '{')) {
+        return 0;
+    }
+    ha_config_skip_ws(p);
+
+    while (**p && **p != '}') {
+        char key[32];
+
+        if (!ha_config_parse_string(p, key, sizeof(key))) {
+            return 0;
+        }
+        ha_config_skip_ws(p);
+        if (!ha_config_expect_char(p, ':')) {
+            return 0;
+        }
+        ha_config_skip_ws(p);
+
+        if (strcmp(key, "base_url") == 0) {
+            if (!ha_config_parse_string(p,
+                                        g_ha_base_url,
+                                        sizeof(g_ha_base_url))) {
+                return 0;
+            }
+        } else if (strcmp(key, "access_token") == 0) {
+            if (!ha_config_parse_string(p,
+                                        g_ha_access_token,
+                                        sizeof(g_ha_access_token))) {
+                return 0;
+            }
+        } else {
+            ha_config_skip_json_value(p);
+        }
+
+        ha_config_skip_ws(p);
+        if (**p == ',') {
+            (*p)++;
+            ha_config_skip_ws(p);
+        } else {
+            break;
+        }
+    }
+
+    if (**p == '}') {
+        (*p)++;
+    } else {
+        fprintf(stderr,
+                "[ha_config] JSON parse error: unterminated home_assistant object\n");
+        return 0;
+    }
+
+    return 1;
+}
+
 static int ha_config_parse_root(const char *buf)
 {
     const char *p = buf;
@@ -638,6 +696,10 @@ static int ha_config_parse_root(const char *buf)
                 return 0;
             }
             found_cards = 1;
+        } else if (strcmp(key, "home_assistant") == 0) {
+            if (!ha_config_parse_home_assistant_object(&p)) {
+                return 0;
+            }
         } else {
             ha_config_skip_json_value(&p);
         }
@@ -673,6 +735,10 @@ static void ha_config_log_loaded(void)
 
     fprintf(stderr, "[ha_config] Loaded %lu card(s)\n",
             (unsigned long)g_card_count);
+    fprintf(stderr, "[ha_config] HA base_url=%s\n",
+            g_ha_base_url[0] ? g_ha_base_url : "<missing>");
+    fprintf(stderr, "[ha_config] HA access_token=%s\n",
+            g_ha_access_token[0] ? "<set>" : "<missing>");
 
     for (i = 0; i < g_card_count; i++) {
         const ha_config_card_t *c = &g_cards[i];
@@ -732,6 +798,7 @@ static void ha_config_log_loaded(void)
 int ha_config_load(const char *path)
 {
     const char *use_path = path ? path : HA_CONFIG_DEFAULT_PATH;
+    const char *fallback_path = path ? NULL : HA_CONFIG_RUNTIME_PATH;
     FILE *fp;
     long len;
     size_t read_len;
@@ -741,6 +808,12 @@ int ha_config_load(const char *path)
     ha_config_reset();
 
     fp = fopen(use_path, "rb");
+    if (!fp && fallback_path) {
+        fp = fopen(fallback_path, "rb");
+        if (fp) {
+            use_path = fallback_path;
+        }
+    }
     if (!fp) {
         fprintf(stderr,
                 "[ha_config] Could not open config file '%s': %s\n",
@@ -826,4 +899,14 @@ const char *ha_config_get_tracked_entity(size_t index)
         return NULL;
     }
     return g_tracked_entities[index];
+}
+
+const char *ha_config_get_ha_base_url(void)
+{
+    return g_ha_base_url;
+}
+
+const char *ha_config_get_ha_access_token(void)
+{
+    return g_ha_access_token;
 }

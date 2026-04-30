@@ -60,6 +60,8 @@ Rules:
 - Home short action now fires on key-down; long Home still triggers emergency Exit. Current responsiveness is accepted for now, but still not Jive-level and should be revisited later.
 - Menu responsiveness issue was measured and corrected at `v0.8.12-phase-b-responsive-menu-audio`: the forced full-screen redraw timer was removed, input polling now runs in a dedicated thread, and menu/button audio feedback is isolated in `audio_feedback`. User verified menu response as near perfect and sound as stable.
 - Audio feedback now runs at 22.05 kHz stereo S16_LE and excess wheel input is coalesced to the latest direction at `v0.8.13-phase-b-audio-rate-wheel-coalesce`; user verified broken slow-scroll beeps are gone.
+- REST state fetch for the configured MVP entities is hardware-verified at `v0.8.14-phase-b-rest-states-sleep`; startup logs show current state for `light.sov_2_tak`, `cover.screen_sov_2`, `switch.ikea_power_plug`, and `media_player.squeezebox_boom`.
+- Sleep/backlight behavior is hardware-verified at `v0.8.14-phase-b-rest-states-sleep`: LCD/backlight turns fully off, key press wakes it, shake wakes it, and Jive does not appear mixed with the HA UI.
 
 ---
 
@@ -92,7 +94,9 @@ Rules:
   - Decision recorded: Adopt RosCard upstream via thin adapter, fallback to fork if criteria fail.
   - Artifact trail present: `v0.8.1-roscard-decision-criteria-verified`, `v0.8.2-roscard-mapping-skeleton-verified`, `v0.8.3-roscard-decision-complete`.
 
-- [ ] **Step 9. HA connection layer (WebSocket + LLAT)** — pending.
+- [ ] **Step 9. HA connection layer (REST state fetch + WebSocket service calls)** — REST state fetch is hardware-verified for the configured MVP entities. WebSocket service calls are still pending. Normal MVP state fetch should use REST `GET /api/states/<entity_id>` for configured entities only, not WebSocket `get_states`.
+
+  MVP entity IDs: `light.sov_2_tak`, `cover.screen_sov_2`, `switch.ikea_power_plug`, `media_player.squeezebox_boom`.
 
 - [ ] **Step 10. State cache + rate limiting** — pending.
 

@@ -2,6 +2,20 @@
 
 ---
 
+## v0.8.14-phase-b-rest-states-sleep — 2026-04-30
+
+- No visual design change.
+- Added `ha_rest` as a separate microservice for configured-entity REST state fetches.
+- Kept normal MVP state fetch off WebSocket `get_states`; it now uses REST `GET /api/states/<entity_id>` for configured entities only.
+- Configured the MVP entities as `light.sov_2_tak`, `cover.screen_sov_2`, `switch.ikea_power_plug`, and `media_player.squeezebox_boom`.
+- Logged current state for each configured MVP entity at startup.
+- Added config parsing for HA `base_url` and `access_token`, with runtime token fallback to `HA_TOKEN` or `HA_LL_Token.txt`.
+- Fixed sleep behavior so the LCD/backlight is powered off via `/sys/class/lcd/ili9320/power=4` and restored on wake.
+- Reduced sleeping runtime activity by skipping UI/timer handling while keeping input and accelerometer wake polling active.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified sleep backlight-off, key wake, shake wake, no Jive/UI framebuffer mixing, and four HA state log lines.
+
+---
+
 ## v0.8.13-phase-b-audio-rate-wheel-coalesce — 2026-04-29
 
 - No visual design change.

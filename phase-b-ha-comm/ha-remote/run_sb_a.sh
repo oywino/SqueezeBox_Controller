@@ -11,4 +11,4 @@ HA_HOST="${HA_HOST:-192.168.1.8}"
 # SB_A offers only legacy algorithms; allow explicitly for this target.
 SSH_OPTS="${SSH_OPTS:--oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedAlgorithms=+ssh-rsa -oCiphers=aes128-cbc -oMACs=+hmac-sha1}"
 
-ssh $SSH_OPTS -tt "$SB_A_HOST" "set -eu; '$STOP_UI'; HA_HOST='$HA_HOST' '$BIN_PATH'"
+ssh $SSH_OPTS -tt "$SB_A_HOST" "set -eu; cd '$REMOTE_DIR'; '$STOP_UI'; HA_HOST='$HA_HOST' '$BIN_PATH'"

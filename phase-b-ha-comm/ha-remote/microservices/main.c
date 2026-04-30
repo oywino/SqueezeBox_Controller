@@ -1,11 +1,15 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <linux/input.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "fb.h"
 #include "input.h"
+#include "ha_config.h"
+#include "ha_rest.h"
 #include "ha_ws.h"
 #include "ui.h"
 #include "stockui.h"
@@ -26,6 +30,66 @@ static int input_activity(void)
     return power_manager_note_activity(ms_now());
 }
 
+static int token_is_placeholder(const char *token)
+{
+    return !token || !*token || token[0] == '<';
+}
+
+static int read_token_file(const char *path, char *out, size_t out_size)
+{
+    FILE *fp;
+    size_t len;
+
+    if (!path || !out || out_size == 0) {
+        return 0;
+    }
+
+    fp = fopen(path, "rb");
+    if (!fp) {
+        return 0;
+    }
+
+    len = fread(out, 1, out_size - 1, fp);
+    fclose(fp);
+    out[len] = '\0';
+
+    while (len > 0 &&
+           (out[len - 1] == '\n' || out[len - 1] == '\r' ||
+            out[len - 1] == ' ' || out[len - 1] == '\t')) {
+        out[--len] = '\0';
+    }
+
+    return len > 0;
+}
+
+static void fetch_configured_ha_states(void)
+{
+    const char *ha_host = getenv("HA_HOST");
+    const char *ha_token_env = getenv("HA_TOKEN");
+    const char *base_url = ha_config_get_ha_base_url();
+    const char *token = ha_config_get_ha_access_token();
+    char base_url_buf[128];
+    char token_buf[256];
+
+    if (ha_host && *ha_host) {
+        snprintf(base_url_buf, sizeof(base_url_buf), "http://%s:8123", ha_host);
+        base_url = base_url_buf;
+    }
+
+    if (ha_token_env && *ha_token_env) {
+        token = ha_token_env;
+    } else if (token_is_placeholder(token)) {
+        if (read_token_file("HA_LL_Token.txt", token_buf, sizeof(token_buf)) ||
+            read_token_file("/mnt/storage/phase-a-lvgl/HA_LL_Token.txt",
+                            token_buf,
+                            sizeof(token_buf))) {
+            token = token_buf;
+        }
+    }
+
+    (void)ha_rest_fetch_configured_states(base_url, token);
+}
+
 int main(void)
 {
     setbuf(stdout, NULL);
@@ -33,6 +97,8 @@ int main(void)
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     ha_ws_seed((uint32_t)(ts.tv_nsec ^ (uint32_t)ts.tv_sec ^ (uint32_t)getpid()));
+
+    int config_loaded = ha_config_load(NULL);
 
     int fb_w = 0, fb_h = 0;
     if (fb_init(&fb_w, &fb_h) != 0) {
@@ -82,6 +148,10 @@ int main(void)
     (void)audio_feedback_start();
     (void)status_cache_start();
 
+    if (config_loaded) {
+        fetch_configured_ha_states();
+    }
+
     lv_timer_create(ha_poll_timer_cb, 100, NULL);
 
     uint64_t last = ms_now();
@@ -89,9 +159,13 @@ int main(void)
         uint64_t now = ms_now();
         uint32_t diff = (uint32_t)(now - last);
         last = now;
-        lv_tick_inc(diff);
         power_manager_tick(now);
         input_pump_events();
+        if (power_manager_is_sleeping()) {
+            usleep(100000);
+            continue;
+        }
+        lv_tick_inc(diff);
         lv_timer_handler();
         usleep(5000);
     }

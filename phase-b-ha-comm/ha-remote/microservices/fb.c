@@ -123,6 +123,11 @@ void fb_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p)
 
 void lcd_wake(void)
 {
+    FILE *fp = fopen("/sys/class/lcd/ili9320/power", "w");
+    if (fp) {
+        fputs("0\n", fp);
+        fclose(fp);
+    }
     if (g_fb_fd >= 0) {
         (void)ioctl(g_fb_fd, FBIOBLANK, FB_BLANK_UNBLANK);
     }
@@ -132,6 +137,11 @@ void lcd_wake(void)
 void lcd_sleep(void)
 {
     if (g_fb_fd >= 0) {
-        (void)ioctl(g_fb_fd, FBIOBLANK, FB_BLANK_POWERDOWN);
+        (void)ioctl(g_fb_fd, FBIOBLANK, FB_BLANK_NORMAL);
+    }
+    FILE *fp = fopen("/sys/class/lcd/ili9320/power", "w");
+    if (fp) {
+        fputs("4\n", fp);
+        fclose(fp);
     }
 }

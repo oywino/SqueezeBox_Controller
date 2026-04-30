@@ -10,6 +10,8 @@ extern "C" {
 #define HA_CONFIG_MAX_ACTION_DATA 8
 #define HA_CONFIG_MAX_CARDS 16
 #define HA_CONFIG_MAX_TRACKED_ENTITIES 32
+#define HA_CONFIG_MAX_BASE_URL 128
+#define HA_CONFIG_MAX_ACCESS_TOKEN 256
 
 typedef struct {
     double brightness_step;
@@ -55,6 +57,10 @@ const ha_config_card_t *ha_config_get_card(size_t index);
 /* Enumerate tracked entities (read-only). */
 size_t ha_config_get_tracked_entity_count(void);
 const char *ha_config_get_tracked_entity(size_t index);
+
+/* Home Assistant connection settings (read-only). */
+const char *ha_config_get_ha_base_url(void);
+const char *ha_config_get_ha_access_token(void);
 
 #ifdef __cplusplus
 }

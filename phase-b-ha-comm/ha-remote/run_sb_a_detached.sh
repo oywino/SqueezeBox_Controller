@@ -22,6 +22,7 @@ STOPUI=\"\$REMOTE_DIR/stockui-stop-hard.sh\"
 
 export HA_HOST='$HA_HOST'
 
+cd \"\$REMOTE_DIR\"
 nohup \"\$BIN\" </dev/null >/tmp/ha-squeeze-remote.log 2>&1 &
 PID=\$!
 echo \$PID >/tmp/ha-squeeze-remote.pid

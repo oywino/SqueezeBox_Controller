@@ -11,58 +11,58 @@
   "cards": [
     {
       "type": "light",
-      "entity_id": "light.living_room",
-      "title": "Living Room",
+      "entity_id": "light.sov_2_tak",
+      "title": "Sov 2 Tak",
       "actions": {
         "primary": {
           "service": "light.toggle",
           "data": {
-            "entity_id": "light.living_room"
+            "entity_id": "light.sov_2_tak"
           }
         }
       }
     },
     {
       "type": "cover",
-      "entity_id": "cover.living_room",
-      "title": "Living Cover",
+      "entity_id": "cover.screen_sov_2",
+      "title": "Screen Sov 2",
       "actions": {
         "primary": {
           "service": "cover.open_cover",
           "data": {
-            "entity_id": "cover.living_room"
+            "entity_id": "cover.screen_sov_2"
           }
         },
         "secondary": {
           "service": "cover.stop_cover",
           "data": {
-            "entity_id": "cover.living_room"
+            "entity_id": "cover.screen_sov_2"
           }
         }
       }
     },
     {
       "type": "switch",
-      "entity_id": "switch.living_room",
-      "title": "Living Switch",
+      "entity_id": "switch.ikea_power_plug",
+      "title": "IKEA Power Plug",
       "actions": {
         "primary": {
           "service": "switch.toggle",
           "data": {
-            "entity_id": "switch.living_room"
+            "entity_id": "switch.ikea_power_plug"
           }
         }
       }
     },
     {
       "type": "media_player",
-      "entity_id": "media_player.tv",
-      "title": "TV",
+      "entity_id": "media_player.squeezebox_boom",
+      "title": "Squeezebox Boom",
       "actions": {
         "primary": {
           "service": "media_player.media_play_pause",
           "data": {
-            "entity_id": "media_player.tv"
+            "entity_id": "media_player.squeezebox_boom"
           }
         }
       }
