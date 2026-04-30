@@ -2,6 +2,14 @@
 
 ---
 
+## v0.8.17-phase-b-card-scroll-guard — 2026-04-30
+
+- No visual design change.
+- Increased the card-only scroll guard from 130 ms to 250 ms to reduce double focus jumps and matching double feedback beeps from one perceived wheel movement.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user approved the behavior.
+
+---
+
 ## v0.8.16-phase-b-card-focus-select-guard — 2026-04-30
 
 - Added the approved four-card MVP focus model: Light, Cover, Switch, Media.

@@ -32,7 +32,7 @@
 #define CARD_H 70
 #define CARD_Y0 8
 #define CARD_STEP 78
-#define CARD_SCROLL_MIN_MS 130
+#define CARD_SCROLL_MIN_MS 250
 
 static int g_should_exit = 0;
 static int g_menu_visible = 0;
