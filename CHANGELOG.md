@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.22-phase-b-media-card-artwork — 2026-05-02
+
+- Added Media Player card behavior for `media_player.squeezebox_boom`: idle/empty media shows a standard card with `Squeezebox Boom` / `Nothing`, while loaded media expands into the approved Jive-style now-playing layout when focused.
+- Added media metadata caching for HA REST/WebSocket state fields: title, artist, album, position, duration, and `entity_picture`.
+- Added `media_art` microservice to fetch album art off the UI thread, decode it to a 240x204 RGB565 surface, and supply it to the UI.
+- Updated incremental build dependency handling so `lv_conf.h` changes rebuild affected objects.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified the album art looks correct.
+
+---
+
 ## v0.8.21-phase-b-cover-animation-visual-tune — 2026-05-02
 
 - Enlarged the Cover card Stop symbol to better align visually with the open/close triangle controls.

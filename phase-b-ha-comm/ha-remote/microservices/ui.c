@@ -9,6 +9,7 @@
 #include "ha_rest.h"
 #include "status_cache.h"
 #include "ha_ws.h"
+#include "media_art.h"
 #include "assets/jive_assets.h"
 #include "src/draw/lv_draw_triangle.h"
 #include "src/extra/libs/tiny_ttf/lv_tiny_ttf.h"
@@ -62,6 +63,17 @@ static lv_obj_t *g_cover_left_2[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_cover_pause[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_cover_right_1[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_cover_right_2[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_media_view = NULL;
+static lv_obj_t *g_media_title = NULL;
+static lv_obj_t *g_media_pause_icon = NULL;
+static lv_obj_t *g_media_play_icon = NULL;
+static lv_obj_t *g_media_artist_album = NULL;
+static lv_obj_t *g_media_elapsed = NULL;
+static lv_obj_t *g_media_remaining = NULL;
+static lv_obj_t *g_media_progress_fill = NULL;
+static lv_obj_t *g_media_art_panel = NULL;
+static lv_obj_t *g_media_art_img = NULL;
+static unsigned long g_media_art_version = 0;
 static lv_obj_t *g_menu_panel = NULL;
 static lv_obj_t *g_menu_rows[MENU_ROW_COUNT] = { NULL };
 static lv_obj_t *g_menu_labels[MENU_ROW_COUNT] = { NULL };
@@ -79,6 +91,7 @@ struct cover_triangle_state {
 };
 
 static struct cover_triangle_state g_cover_triangle_state[CARD_VISIBLE_COUNT][4];
+static struct cover_triangle_state g_media_play_triangle_state = { 1, 0xEBF4FF };
 
 struct ui_card_def {
   const char *title;
@@ -225,9 +238,42 @@ static lv_obj_t *make_pause_symbol(lv_obj_t *parent, uint32_t color)
   return pause;
 }
 
+static lv_obj_t *make_small_pause_symbol(lv_obj_t *parent, uint32_t color)
+{
+  lv_obj_t *pause = lv_obj_create(parent);
+  lv_obj_remove_style_all(pause);
+  lv_obj_set_size(pause, 12, 14);
+  lv_obj_clear_flag(pause, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(pause, LV_OBJ_FLAG_SCROLLABLE);
+  (void)make_panel(pause, 2, 1, 3, 12, color, 0);
+  (void)make_panel(pause, 7, 1, 3, 12, color, 0);
+  return pause;
+}
+
 static void set_label_font(lv_obj_t *label, const lv_font_t *font)
 {
   if(font) lv_obj_set_style_text_font(label, font, 0);
+}
+
+static void fmt_time(int seconds, char *out, size_t out_size, int negative)
+{
+  int min;
+  int sec;
+  if(!out || out_size == 0) return;
+  if(seconds < 0) seconds = 0;
+  min = seconds / 60;
+  sec = seconds % 60;
+  snprintf(out, out_size, "%s%d:%02d", negative ? "-" : "", min, sec);
+}
+
+static int media_state_loaded(const char *state)
+{
+  if(!state || !*state) return 0;
+  if(strcmp(state, "idle") == 0) return 0;
+  if(strcmp(state, "off") == 0) return 0;
+  if(strcmp(state, "unavailable") == 0) return 0;
+  if(strcmp(state, "unknown") == 0) return 0;
+  return 1;
 }
 
 static void set_obj_hidden(lv_obj_t *obj, int hidden)
@@ -256,8 +302,10 @@ static void set_card_slot(int slot)
   int is_cover = 0;
   int is_light = 0;
   int is_switch = 0;
+  int is_media = 0;
   int toggle_on = 0;
   const char *cached_state = NULL;
+  const char *media_title = NULL;
   uint32_t fill = active ? 0xF4F4F4 : 0xD8D8D8;
   uint32_t state_color = active ? 0x006DCC : 0x404040;
 
@@ -271,6 +319,7 @@ static void set_card_slot(int slot)
   is_cover = strcmp(g_cards[card_idx].entity_id, "cover.screen_sov_2") == 0;
   is_light = strcmp(g_cards[card_idx].entity_id, "light.sov_2_tak") == 0;
   is_switch = strcmp(g_cards[card_idx].entity_id, "switch.ikea_power_plug") == 0;
+  is_media = strcmp(g_cards[card_idx].entity_id, "media_player.squeezebox_boom") == 0;
 
   lv_obj_set_style_bg_color(g_card_panels[slot], lv_color_hex(fill), 0);
   lv_obj_set_style_text_color(g_card_titles[slot], lv_color_hex(0x101010), 0);
@@ -308,6 +357,24 @@ static void set_card_slot(int slot)
                               lv_color_hex(toggle_on ? 0x006DCC : 0x8A8A8A),
                               0);
     lv_obj_set_x(g_card_toggle_knobs[slot], toggle_on ? 18 : 2);
+  } else if(is_media) {
+    media_title = ha_rest_get_cached_media_title(g_cards[card_idx].entity_id);
+    cached_state = ha_rest_get_cached_state(g_cards[card_idx].entity_id);
+
+    lv_obj_add_flag(g_card_icons[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_card_toggle_tracks[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_card_toggle_knobs[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(g_card_titles[slot], "Squeezebox Boom");
+    lv_obj_set_width(g_card_titles[slot], MAIN_W - 24);
+    lv_obj_set_style_text_align(g_card_titles[slot], LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(g_card_titles[slot], LV_ALIGN_TOP_MID, 0, 16);
+    lv_obj_clear_flag(g_card_states[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(g_card_states[slot],
+                      (media_state_loaded(cached_state) && media_title) ? media_title : "Nothing");
+    lv_obj_set_width(g_card_states[slot], MAIN_W - 24);
+    lv_obj_set_style_text_align(g_card_states[slot], LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(g_card_states[slot], LV_ALIGN_TOP_MID, 0, 40);
+    lv_obj_set_style_text_color(g_card_states[slot], lv_color_hex(state_color), 0);
   } else {
     lv_obj_clear_flag(g_card_icons[slot], LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(g_card_toggle_tracks[slot], LV_OBJ_FLAG_HIDDEN);
@@ -321,6 +388,76 @@ static void set_card_slot(int slot)
     lv_obj_clear_flag(g_card_states[slot], LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(g_card_states[slot], g_cards[card_idx].entity_id);
     lv_obj_set_style_text_color(g_card_states[slot], lv_color_hex(state_color), 0);
+  }
+}
+
+static void update_media_view(void)
+{
+  const char *entity_id = "media_player.squeezebox_boom";
+  const char *state = ha_rest_get_cached_state(entity_id);
+  const char *title = ha_rest_get_cached_media_title(entity_id);
+  const char *artist = ha_rest_get_cached_media_artist(entity_id);
+  const char *album = ha_rest_get_cached_media_album(entity_id);
+  int selected = g_card_top + g_card_focus;
+  int position = 0;
+  int duration = 0;
+  int have_position = ha_rest_get_cached_media_position(entity_id, &position);
+  int have_duration = ha_rest_get_cached_media_duration(entity_id, &duration);
+  char elapsed[16];
+  char remaining[16];
+  char artist_album[192];
+  int fill_w = 0;
+  unsigned long art_version;
+  const lv_img_dsc_t *art_image;
+
+  if(!g_media_view) return;
+
+  if(selected != 3 || !media_state_loaded(state) || !title || !*title) {
+    lv_obj_add_flag(g_media_view, LV_OBJ_FLAG_HIDDEN);
+    return;
+  }
+
+  lv_obj_clear_flag(g_media_view, LV_OBJ_FLAG_HIDDEN);
+  lv_label_set_text(g_media_title, title);
+  if(state && strcmp(state, "playing") == 0) {
+    lv_obj_clear_flag(g_media_play_icon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_media_pause_icon, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(g_media_play_icon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(g_media_pause_icon, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  if(artist && album) snprintf(artist_album, sizeof(artist_album), "%s • %s", artist, album);
+  else if(artist) snprintf(artist_album, sizeof(artist_album), "%s", artist);
+  else if(album) snprintf(artist_album, sizeof(artist_album), "%s", album);
+  else snprintf(artist_album, sizeof(artist_album), "%s", "");
+  lv_label_set_text(g_media_artist_album, artist_album);
+
+  fmt_time(have_position ? position : 0, elapsed, sizeof(elapsed), 0);
+  fmt_time(have_duration && have_position ? duration - position : 0, remaining, sizeof(remaining), 1);
+  lv_label_set_text(g_media_elapsed, elapsed);
+  lv_label_set_text(g_media_remaining, remaining);
+
+  if(have_duration && duration > 0 && have_position) {
+    fill_w = (position * 129) / duration;
+    if(fill_w < 0) fill_w = 0;
+    if(fill_w > 129) fill_w = 129;
+  }
+  lv_obj_set_width(g_media_progress_fill, fill_w);
+
+  art_image = media_art_get_image(&art_version);
+  if(g_media_art_img && g_media_art_version != art_version) {
+    g_media_art_version = art_version;
+    if(art_image) {
+      lv_img_set_zoom(g_media_art_img, LV_IMG_ZOOM_NONE);
+      lv_img_cache_invalidate_src(art_image);
+      lv_img_set_src(g_media_art_img, art_image);
+      lv_obj_clear_flag(g_media_art_img, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_update_layout(g_media_art_img);
+      lv_obj_align(g_media_art_img, LV_ALIGN_TOP_MID, 0, 0);
+    } else {
+      lv_obj_add_flag(g_media_art_img, LV_OBJ_FLAG_HIDDEN);
+    }
   }
 }
 
@@ -388,11 +525,18 @@ static void cover_anim_timer_cb(lv_timer_t *t)
   update_cover_animation();
 }
 
+static void media_view_timer_cb(lv_timer_t *t)
+{
+  (void)t;
+  update_media_view();
+}
+
 static void refresh_cards(void)
 {
   for(int i = 0; i < CARD_VISIBLE_COUNT; ++i) {
     set_card_slot(i);
   }
+  update_media_view();
 }
 
 static void build_card_slot(lv_obj_t *main_area, int slot)
@@ -499,6 +643,51 @@ static void build_menu(lv_obj_t *scr)
   build_menu_row(g_menu_panel, 4, 148, "More");
 }
 
+static void build_media_view(lv_obj_t *scr)
+{
+  g_media_view = make_panel(scr, 0, TOP_H, SCREEN_W, SCREEN_H - TOP_H, 0x16181E, 0);
+  lv_obj_add_flag(g_media_view, LV_OBJ_FLAG_HIDDEN);
+
+  g_media_title = make_label(g_media_view, "", 0xEBF4FF);
+  set_label_font(g_media_title, g_font_title);
+  lv_obj_set_width(g_media_title, 170);
+  lv_label_set_long_mode(g_media_title, LV_LABEL_LONG_CLIP);
+  lv_obj_align(g_media_title, LV_ALIGN_TOP_LEFT, 8, 6);
+
+  g_media_pause_icon = make_small_pause_symbol(g_media_view, 0xEBF4FF);
+  lv_obj_align(g_media_pause_icon, LV_ALIGN_TOP_RIGHT, -15, 17);
+
+  g_media_play_icon = lv_obj_create(g_media_view);
+  lv_obj_remove_style_all(g_media_play_icon);
+  lv_obj_set_size(g_media_play_icon, 10, 12);
+  lv_obj_clear_flag(g_media_play_icon, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(g_media_play_icon, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_event_cb(g_media_play_icon, cover_triangle_draw_cb, LV_EVENT_DRAW_MAIN, &g_media_play_triangle_state);
+  lv_obj_align(g_media_play_icon, LV_ALIGN_TOP_RIGHT, -16, 18);
+  lv_obj_add_flag(g_media_play_icon, LV_OBJ_FLAG_HIDDEN);
+
+  g_media_artist_album = make_label(g_media_view, "", 0xAFC0D2);
+  set_label_font(g_media_artist_album, g_font_state);
+  lv_obj_set_width(g_media_artist_album, 220);
+  lv_label_set_long_mode(g_media_artist_album, LV_LABEL_LONG_CLIP);
+  lv_obj_align(g_media_artist_album, LV_ALIGN_TOP_LEFT, 9, 39);
+
+  g_media_elapsed = make_label(g_media_view, "0:00", 0xEBF4FF);
+  set_label_font(g_media_elapsed, g_font_small);
+  lv_obj_align(g_media_elapsed, LV_ALIGN_TOP_LEFT, 9, 65);
+
+  g_media_remaining = make_label(g_media_view, "-0:00", 0xEBF4FF);
+  set_label_font(g_media_remaining, g_font_small);
+  lv_obj_align(g_media_remaining, LV_ALIGN_TOP_RIGHT, -6, 65);
+
+  (void)make_panel(g_media_view, 61, 75, 129, 2, 0x788796, 1);
+  g_media_progress_fill = make_panel(g_media_view, 61, 75, 0, 2, 0xEBF4FF, 1);
+  g_media_art_panel = make_panel(g_media_view, 0, 86, 240, 204, 0x30343A, 0);
+  g_media_art_img = lv_img_create(g_media_art_panel);
+  lv_obj_add_flag(g_media_art_img, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_align(g_media_art_img, LV_ALIGN_CENTER, 0, 0);
+}
+
 static void set_menu_x(void *obj, int32_t x)
 {
   lv_obj_set_x((lv_obj_t *)obj, (lv_coord_t)x);
@@ -535,6 +724,17 @@ void ui_init(lv_group_t *grp)
   g_card_top = 0;
   g_card_focus = 0;
   g_last_card_scroll_ms = 0;
+  g_media_view = NULL;
+  g_media_title = NULL;
+  g_media_pause_icon = NULL;
+  g_media_play_icon = NULL;
+  g_media_artist_album = NULL;
+  g_media_elapsed = NULL;
+  g_media_remaining = NULL;
+  g_media_progress_fill = NULL;
+  g_media_art_panel = NULL;
+  g_media_art_img = NULL;
+  g_media_art_version = 0;
   for(int i = 0; i < CARD_VISIBLE_COUNT; ++i) {
     g_card_panels[i] = NULL;
     g_card_icons[i] = NULL;
@@ -582,11 +782,13 @@ void ui_init(lv_group_t *grp)
   set_label_font(hint, g_font_small);
   lv_obj_align(hint, LV_ALIGN_LEFT_MID, 8, 0);
 
+  build_media_view(scr);
   build_menu(scr);
   status_update();
   lv_timer_create(status_timer_cb, 1000, NULL);
   lv_timer_create(ha_poll_timer_cb, 100, NULL);
   lv_timer_create(cover_anim_timer_cb, 20, NULL);
+  lv_timer_create(media_view_timer_cb, 250, NULL);
 
   (void)grp;
 }

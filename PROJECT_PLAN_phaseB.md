@@ -129,7 +129,7 @@ Verified Phase B UI/runtime checkpoint:
 
 - [ ] **Step 12. Minimal demo UI (“one screen per card type” PoC)**  
   Start with Light, Cover, Switch, and Media Player; wheel navigation; push/long-push actions; verify end-to-end loop.
-  First shell verified at `v0.8.8-phase-b-ui-shell-sleep`; responsive menu/audio behavior verified at `v0.8.12-phase-b-responsive-menu-audio`; card population remains pending.
+  First shell verified at `v0.8.8-phase-b-ui-shell-sleep`; responsive menu/audio behavior verified at `v0.8.12-phase-b-responsive-menu-audio`; Light, Cover, and Switch cards have approved first actions; Media Player card has the approved Jive-style now-playing layout with album art at `v0.8.22-phase-b-media-card-artwork`.
 
 - [ ] **Step 13. Configuration loading**  
   Load small config for entity IDs + layout; allow reload on startup.

@@ -20,6 +20,7 @@ microservices/audio_feedback.c
 microservices/hal.c
 microservices/power_manager.c
 microservices/status_cache.c
+microservices/media_art.c
 microservices/assets/jive_assets.c
 microservices/ui.c
 microservices/ha_config.c
@@ -41,6 +42,8 @@ for src in $SOURCES $LVGL_SOURCES; do
   rebuild=0
 
   if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ]; then
+    rebuild=1
+  elif [ "lv_conf.h" -nt "$obj" ]; then
     rebuild=1
   elif [ -f "$dep" ]; then
     deps="$(sed -e 's/\\$//' -e 's/^[^:]*://' "$dep")"

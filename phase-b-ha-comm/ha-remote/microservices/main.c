@@ -18,6 +18,7 @@
 #include "hal.h"
 #include "power_manager.h"
 #include "status_cache.h"
+#include "media_art.h"
 
 #define ENCODER_PUSH_CODE 106
 #define SB_KEY_REWIND 165
@@ -158,6 +159,23 @@ static void start_ha_state_subscription(void)
                           &token);
 
     (void)ha_session_subscribe_state_changes(base_url, token);
+}
+
+static void start_media_art_service(void)
+{
+    const char *base_url;
+    const char *token;
+    char base_url_buf[128];
+    char token_buf[256];
+
+    resolve_ha_connection(base_url_buf,
+                          sizeof(base_url_buf),
+                          token_buf,
+                          sizeof(token_buf),
+                          &base_url,
+                          &token);
+
+    (void)media_art_start(base_url, token, "media_player.squeezebox_boom");
 }
 
 static void toggle_focused_binary_card(void)
@@ -331,6 +349,7 @@ int main(void)
     if (config_loaded) {
         fetch_configured_ha_states();
         ui_refresh_cards();
+        start_media_art_service();
         start_ha_state_subscription();
     }
 
@@ -353,6 +372,7 @@ int main(void)
     }
 
     ha_session_close();
+    media_art_stop();
     status_cache_stop();
     audio_feedback_stop();
     input_deinit();

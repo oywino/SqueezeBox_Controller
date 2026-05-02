@@ -311,8 +311,14 @@ static void handle_state_changed(const char *msg)
 {
   char entity_id[64];
   char state[HA_REST_MAX_STATE];
+  char media_title[96];
+  char media_artist[96];
+  char media_album[96];
+  char media_picture[256];
   const char *new_state;
   int position;
+  int media_position;
+  int media_duration;
 
   if(!msg || !strstr(msg, "\"event_type\":\"state_changed\"")) return;
   if(!json_extract_string_after(msg, "entity_id", entity_id, sizeof(entity_id))) return;
@@ -333,6 +339,32 @@ static void handle_state_changed(const char *msg)
   }
 
   ha_rest_set_cached_state(entity_id, state);
+  if(json_extract_string_after(new_state, "media_title", media_title, sizeof(media_title))) {
+    ha_rest_set_cached_media_title(entity_id, media_title);
+  } else if(strncmp(entity_id, "media_player.", 13) == 0) {
+    ha_rest_set_cached_media_title(entity_id, NULL);
+  }
+  if(json_extract_string_after(new_state, "media_artist", media_artist, sizeof(media_artist))) {
+    ha_rest_set_cached_media_artist(entity_id, media_artist);
+  } else if(strncmp(entity_id, "media_player.", 13) == 0) {
+    ha_rest_set_cached_media_artist(entity_id, NULL);
+  }
+  if(json_extract_string_after(new_state, "media_album_name", media_album, sizeof(media_album))) {
+    ha_rest_set_cached_media_album(entity_id, media_album);
+  } else if(strncmp(entity_id, "media_player.", 13) == 0) {
+    ha_rest_set_cached_media_album(entity_id, NULL);
+  }
+  if(json_extract_string_after(new_state, "entity_picture", media_picture, sizeof(media_picture))) {
+    ha_rest_set_cached_media_picture(entity_id, media_picture);
+  } else if(strncmp(entity_id, "media_player.", 13) == 0) {
+    ha_rest_set_cached_media_picture(entity_id, NULL);
+  }
+  if(json_extract_int_after(new_state, "media_position", &media_position)) {
+    ha_rest_set_cached_media_position(entity_id, media_position);
+  }
+  if(json_extract_int_after(new_state, "media_duration", &media_duration)) {
+    ha_rest_set_cached_media_duration(entity_id, media_duration);
+  }
   if(json_extract_int_after(new_state, "current_position", &position)) {
     ha_rest_set_cached_position(entity_id, position);
     fprintf(stderr, "[ha_ws] state_changed %s state=%s position=%d\n",

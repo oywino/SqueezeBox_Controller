@@ -11,6 +11,14 @@
 typedef struct {
     char entity_id[64];
     char state[HA_REST_MAX_STATE];
+    char media_title[96];
+    char media_artist[96];
+    char media_album[96];
+    char media_picture[256];
+    int media_position;
+    int media_duration;
+    int have_media_position;
+    int have_media_duration;
     int position;
     int have_position;
     unsigned long version;
@@ -238,6 +246,14 @@ static ha_rest_cached_state_t *ha_rest_cache_slot(const char *entity_id)
              "%s",
              entity_id);
     g_states[g_state_count].state[0] = '\0';
+    g_states[g_state_count].media_title[0] = '\0';
+    g_states[g_state_count].media_artist[0] = '\0';
+    g_states[g_state_count].media_album[0] = '\0';
+    g_states[g_state_count].media_picture[0] = '\0';
+    g_states[g_state_count].media_position = 0;
+    g_states[g_state_count].media_duration = 0;
+    g_states[g_state_count].have_media_position = 0;
+    g_states[g_state_count].have_media_duration = 0;
     g_states[g_state_count].position = -1;
     g_states[g_state_count].have_position = 0;
     g_states[g_state_count].version = 0;
@@ -254,7 +270,13 @@ static int ha_rest_fetch_entity(const ha_rest_url_t *url,
     char req[1024];
     char response[8192];
     char state[HA_REST_MAX_STATE];
+    char media_title[96];
+    char media_artist[96];
+    char media_album[96];
+    char media_picture[256];
     int position;
+    int media_position;
+    int media_duration;
     ha_rest_cached_state_t *slot;
     int n;
 
@@ -310,6 +332,34 @@ static int ha_rest_fetch_entity(const ha_rest_url_t *url,
         if (ha_rest_extract_json_int(response, "current_position", &position)) {
             slot->position = position;
             slot->have_position = 1;
+        }
+        if (ha_rest_extract_json_string(response, "media_title", media_title, sizeof(media_title))) {
+            snprintf(slot->media_title, sizeof(slot->media_title), "%s", media_title);
+        } else {
+            slot->media_title[0] = '\0';
+        }
+        if (ha_rest_extract_json_string(response, "media_artist", media_artist, sizeof(media_artist))) {
+            snprintf(slot->media_artist, sizeof(slot->media_artist), "%s", media_artist);
+        } else {
+            slot->media_artist[0] = '\0';
+        }
+        if (ha_rest_extract_json_string(response, "media_album_name", media_album, sizeof(media_album))) {
+            snprintf(slot->media_album, sizeof(slot->media_album), "%s", media_album);
+        } else {
+            slot->media_album[0] = '\0';
+        }
+        if (ha_rest_extract_json_string(response, "entity_picture", media_picture, sizeof(media_picture))) {
+            snprintf(slot->media_picture, sizeof(slot->media_picture), "%s", media_picture);
+        } else {
+            slot->media_picture[0] = '\0';
+        }
+        if (ha_rest_extract_json_int(response, "media_position", &media_position)) {
+            slot->media_position = media_position;
+            slot->have_media_position = 1;
+        }
+        if (ha_rest_extract_json_int(response, "media_duration", &media_duration)) {
+            slot->media_duration = media_duration;
+            slot->have_media_duration = 1;
         }
         slot->version++;
         slot->valid = 1;
@@ -495,6 +545,106 @@ const char *ha_rest_get_cached_state(const char *entity_id)
     return NULL;
 }
 
+const char *ha_rest_get_cached_media_title(const char *entity_id)
+{
+    size_t i;
+
+    if (!entity_id) {
+        return NULL;
+    }
+
+    for (i = 0; i < g_state_count; i++) {
+        if (g_states[i].valid && strcmp(g_states[i].entity_id, entity_id) == 0) {
+            return g_states[i].media_title[0] ? g_states[i].media_title : NULL;
+        }
+    }
+    return NULL;
+}
+
+const char *ha_rest_get_cached_media_artist(const char *entity_id)
+{
+    size_t i;
+
+    if (!entity_id) {
+        return NULL;
+    }
+
+    for (i = 0; i < g_state_count; i++) {
+        if (g_states[i].valid && strcmp(g_states[i].entity_id, entity_id) == 0) {
+            return g_states[i].media_artist[0] ? g_states[i].media_artist : NULL;
+        }
+    }
+    return NULL;
+}
+
+const char *ha_rest_get_cached_media_album(const char *entity_id)
+{
+    size_t i;
+
+    if (!entity_id) {
+        return NULL;
+    }
+
+    for (i = 0; i < g_state_count; i++) {
+        if (g_states[i].valid && strcmp(g_states[i].entity_id, entity_id) == 0) {
+            return g_states[i].media_album[0] ? g_states[i].media_album : NULL;
+        }
+    }
+    return NULL;
+}
+
+int ha_rest_get_cached_media_position(const char *entity_id, int *position)
+{
+    size_t i;
+
+    if (!entity_id || !position) {
+        return 0;
+    }
+
+    for (i = 0; i < g_state_count; i++) {
+        if (g_states[i].valid && strcmp(g_states[i].entity_id, entity_id) == 0 &&
+            g_states[i].have_media_position) {
+            *position = g_states[i].media_position;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int ha_rest_get_cached_media_duration(const char *entity_id, int *duration)
+{
+    size_t i;
+
+    if (!entity_id || !duration) {
+        return 0;
+    }
+
+    for (i = 0; i < g_state_count; i++) {
+        if (g_states[i].valid && strcmp(g_states[i].entity_id, entity_id) == 0 &&
+            g_states[i].have_media_duration) {
+            *duration = g_states[i].media_duration;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+const char *ha_rest_get_cached_media_picture(const char *entity_id)
+{
+    size_t i;
+
+    if (!entity_id) {
+        return NULL;
+    }
+
+    for (i = 0; i < g_state_count; i++) {
+        if (g_states[i].valid && strcmp(g_states[i].entity_id, entity_id) == 0) {
+            return g_states[i].media_picture[0] ? g_states[i].media_picture : NULL;
+        }
+    }
+    return NULL;
+}
+
 unsigned long ha_rest_get_cached_version(const char *entity_id)
 {
     size_t i;
@@ -543,6 +693,116 @@ void ha_rest_set_cached_state(const char *entity_id, const char *state)
     }
 
     snprintf(slot->state, sizeof(slot->state), "%s", state);
+    slot->version++;
+    slot->valid = 1;
+}
+
+void ha_rest_set_cached_media_title(const char *entity_id, const char *title)
+{
+    ha_rest_cached_state_t *slot;
+
+    if (!entity_id || !*entity_id) {
+        return;
+    }
+
+    slot = ha_rest_cache_slot(entity_id);
+    if (!slot) {
+        return;
+    }
+
+    if (title && *title) {
+        snprintf(slot->media_title, sizeof(slot->media_title), "%s", title);
+    } else {
+        slot->media_title[0] = '\0';
+    }
+    slot->version++;
+    slot->valid = 1;
+}
+
+static void set_cached_string_field(const char *entity_id, const char *value, int field)
+{
+    ha_rest_cached_state_t *slot;
+    char *dest;
+    size_t dest_size;
+
+    if (!entity_id || !*entity_id) {
+        return;
+    }
+
+    slot = ha_rest_cache_slot(entity_id);
+    if (!slot) {
+        return;
+    }
+
+    if (field == 0) {
+        dest = slot->media_artist;
+        dest_size = sizeof(slot->media_artist);
+    } else if (field == 1) {
+        dest = slot->media_album;
+        dest_size = sizeof(slot->media_album);
+    } else {
+        dest = slot->media_picture;
+        dest_size = sizeof(slot->media_picture);
+    }
+
+    if (value && *value) {
+        snprintf(dest, dest_size, "%s", value);
+    } else {
+        dest[0] = '\0';
+    }
+    slot->version++;
+    slot->valid = 1;
+}
+
+void ha_rest_set_cached_media_artist(const char *entity_id, const char *artist)
+{
+    set_cached_string_field(entity_id, artist, 0);
+}
+
+void ha_rest_set_cached_media_album(const char *entity_id, const char *album)
+{
+    set_cached_string_field(entity_id, album, 1);
+}
+
+void ha_rest_set_cached_media_picture(const char *entity_id, const char *picture)
+{
+    set_cached_string_field(entity_id, picture, 2);
+}
+
+void ha_rest_set_cached_media_position(const char *entity_id, int position)
+{
+    ha_rest_cached_state_t *slot;
+
+    if (!entity_id || !*entity_id) {
+        return;
+    }
+
+    slot = ha_rest_cache_slot(entity_id);
+    if (!slot) {
+        return;
+    }
+
+    slot->media_position = position;
+    slot->have_media_position = 1;
+    slot->version++;
+    slot->valid = 1;
+}
+
+void ha_rest_set_cached_media_duration(const char *entity_id, int duration)
+{
+    ha_rest_cached_state_t *slot;
+
+    if (!entity_id || !*entity_id) {
+        return;
+    }
+
+    slot = ha_rest_cache_slot(entity_id);
+    if (!slot) {
+        return;
+    }
+
+    slot->media_duration = duration;
+    slot->have_media_duration = 1;
     slot->version++;
     slot->valid = 1;
 }
