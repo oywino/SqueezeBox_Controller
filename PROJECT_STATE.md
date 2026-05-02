@@ -67,6 +67,8 @@ Rules:
 - Card focus scroll sensitivity was reduced at `v0.8.17-phase-b-card-scroll-guard` by increasing the card-only scroll guard to 250 ms.
 - Switch card live-state rendering is hardware-verified at `v0.8.18-phase-b-switch-card-live-state`: the approved no-icon switch layout is used, and HA WebSocket `state_changed` events update the REST state cache and card toggle indicator.
 - Light card visual/live-state/action behavior is hardware-verified at `v0.8.19-phase-b-light-card-action`: the approved toggle layout is used for `Sov 2 Tak`, HA pushed state changes update the card, and rotary/select calls `light.toggle` when focused.
+- Cover card visual/action behavior is hardware-verified at `v0.8.20-phase-b-cover-card-action`: `<<` opens, `||` stops, `>>` closes, and the manually drawn triangle animation follows `current_position` until `100`/`0` or Stop.
+- `build_incremental.sh` is available for future ARMv5 builds so unchanged modules are not recompiled for small source changes.
 - Verified Home Assistant base URL for current runtime/config is `http://192.168.1.8:8123`; startup REST state fetch logs `4/4 ok`.
 
 ---

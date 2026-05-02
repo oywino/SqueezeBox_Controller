@@ -275,6 +275,25 @@ static int json_extract_string_after(const char *start,
   return *p == '"';
 }
 
+static int json_extract_int_after(const char *start, const char *key, int *out)
+{
+  char pattern[48];
+  const char *p;
+
+  if(!start || !key || !out) return 0;
+  snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+  p = strstr(start, pattern);
+  if(!p) return 0;
+  p += strlen(pattern);
+  while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+  if(*p != ':') return 0;
+  p++;
+  while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+  if((*p < '0' || *p > '9') && *p != '-') return 0;
+  *out = atoi(p);
+  return 1;
+}
+
 static int is_configured_entity(const char *entity_id)
 {
   size_t count = ha_config_get_tracked_entity_count();
@@ -293,6 +312,7 @@ static void handle_state_changed(const char *msg)
   char entity_id[64];
   char state[HA_REST_MAX_STATE];
   const char *new_state;
+  int position;
 
   if(!msg || !strstr(msg, "\"event_type\":\"state_changed\"")) return;
   if(!json_extract_string_after(msg, "entity_id", entity_id, sizeof(entity_id))) return;
@@ -313,7 +333,15 @@ static void handle_state_changed(const char *msg)
   }
 
   ha_rest_set_cached_state(entity_id, state);
-  fprintf(stderr, "[ha_ws] state_changed %s state=%s\n", entity_id, state);
+  if(json_extract_int_after(new_state, "current_position", &position)) {
+    ha_rest_set_cached_position(entity_id, position);
+    fprintf(stderr, "[ha_ws] state_changed %s state=%s position=%d\n",
+            entity_id,
+            state,
+            position);
+  } else {
+    fprintf(stderr, "[ha_ws] state_changed %s state=%s\n", entity_id, state);
+  }
   ui_refresh_cards();
 }
 

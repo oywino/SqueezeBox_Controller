@@ -20,8 +20,15 @@
 #include "status_cache.h"
 
 #define ENCODER_PUSH_CODE 106
+#define SB_KEY_REWIND 165
+#define SB_KEY_PAUSE 164
+#define SB_KEY_FASTFORWARD 163
 #define MVP_LIGHT_ENTITY_ID "light.sov_2_tak"
 #define MVP_LIGHT_SERVICE "light.toggle"
+#define MVP_COVER_ENTITY_ID "cover.screen_sov_2"
+#define MVP_COVER_CLOSE_SERVICE "cover.close_cover"
+#define MVP_COVER_STOP_SERVICE "cover.stop_cover"
+#define MVP_COVER_OPEN_SERVICE "cover.open_cover"
 #define MVP_SWITCH_ENTITY_ID "switch.ikea_power_plug"
 #define MVP_SWITCH_SERVICE "switch.toggle"
 
@@ -119,6 +126,23 @@ static void fetch_configured_ha_states(void)
     (void)ha_rest_fetch_configured_states(base_url, token);
 }
 
+static void fetch_cover_state(void)
+{
+    const char *base_url;
+    const char *token;
+    char base_url_buf[128];
+    char token_buf[256];
+
+    resolve_ha_connection(base_url_buf,
+                          sizeof(base_url_buf),
+                          token_buf,
+                          sizeof(token_buf),
+                          &base_url,
+                          &token);
+
+    (void)ha_rest_fetch_state(base_url, token, MVP_COVER_ENTITY_ID);
+}
+
 static void start_ha_state_subscription(void)
 {
     const char *base_url;
@@ -185,6 +209,62 @@ static void toggle_focused_binary_card(void)
     pthread_mutex_unlock(&g_action_lock);
 }
 
+static void call_cover_service(const char *service, const char *motion)
+{
+    const char *base_url;
+    const char *token;
+    char base_url_buf[128];
+    char token_buf[256];
+    const char *focused_entity = ui_focused_card_entity_id();
+
+    if (strcmp(focused_entity, MVP_COVER_ENTITY_ID) != 0) {
+        fprintf(stderr,
+                "[ha_action] cover key ignored: focused entity=%s\n",
+                focused_entity && *focused_entity ? focused_entity : "<none>");
+        return;
+    }
+
+    ui_cover_note_command(MVP_COVER_ENTITY_ID, motion);
+
+    pthread_mutex_lock(&g_action_lock);
+    if (g_action_in_flight) {
+        pthread_mutex_unlock(&g_action_lock);
+        fprintf(stderr, "[ha_action] cover action ignored: action in flight\n");
+        return;
+    }
+    g_action_in_flight = 1;
+    pthread_mutex_unlock(&g_action_lock);
+
+    resolve_ha_connection(base_url_buf,
+                          sizeof(base_url_buf),
+                          token_buf,
+                          sizeof(token_buf),
+                          &base_url,
+                          &token);
+
+    (void)ha_rest_call_service(base_url, token, service, MVP_COVER_ENTITY_ID);
+    ui_refresh_cards();
+
+    pthread_mutex_lock(&g_action_lock);
+    g_action_in_flight = 0;
+    pthread_mutex_unlock(&g_action_lock);
+}
+
+static void close_focused_cover(void)
+{
+    call_cover_service(MVP_COVER_CLOSE_SERVICE, "closing");
+}
+
+static void stop_focused_cover(void)
+{
+    call_cover_service(MVP_COVER_STOP_SERVICE, "stopped");
+}
+
+static void open_focused_cover(void)
+{
+    call_cover_service(MVP_COVER_OPEN_SERVICE, "opening");
+}
+
 int main(void)
 {
     setbuf(stdout, NULL);
@@ -235,8 +315,12 @@ int main(void)
     lv_indev_set_group(indev, grp);
 
     ui_init(grp);
+    ui_set_cover_refresh_callback(fetch_cover_state);
     input_set_key_callbacks(KEY_HOME, ui_toggle_menu, ui_emergency_exit);
     input_set_key_callbacks(ENCODER_PUSH_CODE, toggle_focused_binary_card, NULL);
+    input_set_key_callbacks(SB_KEY_REWIND, open_focused_cover, NULL);
+    input_set_key_callbacks(SB_KEY_PAUSE, stop_focused_cover, NULL);
+    input_set_key_callbacks(SB_KEY_FASTFORWARD, close_focused_cover, NULL);
     input_set_wheel_callback(ui_menu_wheel);
     input_set_activity_callback(input_activity);
 

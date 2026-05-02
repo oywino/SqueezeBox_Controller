@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -10,6 +11,9 @@
 typedef struct {
     char entity_id[64];
     char state[HA_REST_MAX_STATE];
+    int position;
+    int have_position;
+    unsigned long version;
     int valid;
 } ha_rest_cached_state_t;
 
@@ -181,6 +185,40 @@ static int ha_rest_extract_json_string(const char *json,
     return *p == '"';
 }
 
+static int ha_rest_extract_json_int(const char *json, const char *key, int *out)
+{
+    char pattern[48];
+    const char *p;
+
+    if (!json || !key || !out) {
+        return 0;
+    }
+
+    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+    p = strstr(json, pattern);
+    if (!p) {
+        return 0;
+    }
+    p += strlen(pattern);
+
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') {
+        p++;
+    }
+    if (*p != ':') {
+        return 0;
+    }
+    p++;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') {
+        p++;
+    }
+    if ((*p < '0' || *p > '9') && *p != '-') {
+        return 0;
+    }
+
+    *out = atoi(p);
+    return 1;
+}
+
 static ha_rest_cached_state_t *ha_rest_cache_slot(const char *entity_id)
 {
     size_t i;
@@ -200,6 +238,9 @@ static ha_rest_cached_state_t *ha_rest_cache_slot(const char *entity_id)
              "%s",
              entity_id);
     g_states[g_state_count].state[0] = '\0';
+    g_states[g_state_count].position = -1;
+    g_states[g_state_count].have_position = 0;
+    g_states[g_state_count].version = 0;
     g_states[g_state_count].valid = 0;
     g_state_count++;
     return &g_states[g_state_count - 1];
@@ -213,6 +254,7 @@ static int ha_rest_fetch_entity(const ha_rest_url_t *url,
     char req[1024];
     char response[8192];
     char state[HA_REST_MAX_STATE];
+    int position;
     ha_rest_cached_state_t *slot;
     int n;
 
@@ -265,10 +307,19 @@ static int ha_rest_fetch_entity(const ha_rest_url_t *url,
     slot = ha_rest_cache_slot(entity_id);
     if (slot) {
         snprintf(slot->state, sizeof(slot->state), "%s", state);
+        if (ha_rest_extract_json_int(response, "current_position", &position)) {
+            slot->position = position;
+            slot->have_position = 1;
+        }
+        slot->version++;
         slot->valid = 1;
     }
 
-    fprintf(stderr, "[ha_rest] %s state=%s\n", entity_id, state);
+    if (slot && slot->have_position) {
+        fprintf(stderr, "[ha_rest] %s state=%s position=%d\n", entity_id, state, slot->position);
+    } else {
+        fprintf(stderr, "[ha_rest] %s state=%s\n", entity_id, state);
+    }
     return 1;
 }
 
@@ -308,6 +359,23 @@ int ha_rest_fetch_configured_states(const char *base_url, const char *token)
             ok_count,
             (unsigned long)count);
     return ok_count == (int)count;
+}
+
+int ha_rest_fetch_state(const char *base_url, const char *token, const char *entity_id)
+{
+    ha_rest_url_t url;
+
+    if (!ha_rest_parse_base_url(base_url, &url)) {
+        fprintf(stderr, "[ha_rest] state fetch skipped: bad base_url\n");
+        return 0;
+    }
+
+    if (!token || !*token || !entity_id || !*entity_id) {
+        fprintf(stderr, "[ha_rest] state fetch skipped: missing input\n");
+        return 0;
+    }
+
+    return ha_rest_fetch_entity(&url, token, entity_id);
 }
 
 int ha_rest_call_service(const char *base_url,
@@ -405,7 +473,9 @@ int ha_rest_call_service(const char *base_url,
             "[ha_rest] service call ok: %s entity_id=%s\n",
             service,
             entity_id);
-    (void)ha_rest_fetch_entity(&url, token, entity_id);
+    if (strncmp(service, "cover.", 6) != 0) {
+        (void)ha_rest_fetch_entity(&url, token, entity_id);
+    }
     return 1;
 }
 
@@ -425,6 +495,40 @@ const char *ha_rest_get_cached_state(const char *entity_id)
     return NULL;
 }
 
+unsigned long ha_rest_get_cached_version(const char *entity_id)
+{
+    size_t i;
+
+    if (!entity_id) {
+        return 0;
+    }
+
+    for (i = 0; i < g_state_count; i++) {
+        if (g_states[i].valid && strcmp(g_states[i].entity_id, entity_id) == 0) {
+            return g_states[i].version;
+        }
+    }
+    return 0;
+}
+
+int ha_rest_get_cached_position(const char *entity_id, int *position)
+{
+    size_t i;
+
+    if (!entity_id || !position) {
+        return 0;
+    }
+
+    for (i = 0; i < g_state_count; i++) {
+        if (g_states[i].valid && strcmp(g_states[i].entity_id, entity_id) == 0 &&
+            g_states[i].have_position) {
+            *position = g_states[i].position;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void ha_rest_set_cached_state(const char *entity_id, const char *state)
 {
     ha_rest_cached_state_t *slot;
@@ -439,7 +543,44 @@ void ha_rest_set_cached_state(const char *entity_id, const char *state)
     }
 
     snprintf(slot->state, sizeof(slot->state), "%s", state);
+    slot->version++;
     slot->valid = 1;
+}
+
+void ha_rest_set_cached_position(const char *entity_id, int position)
+{
+    ha_rest_cached_state_t *slot;
+
+    if (!entity_id || !*entity_id) {
+        return;
+    }
+
+    slot = ha_rest_cache_slot(entity_id);
+    if (!slot) {
+        return;
+    }
+
+    slot->position = position;
+    slot->have_position = 1;
+    slot->version++;
+    slot->valid = 1;
+}
+
+void ha_rest_clear_cached_position(const char *entity_id)
+{
+    ha_rest_cached_state_t *slot;
+
+    if (!entity_id || !*entity_id) {
+        return;
+    }
+
+    slot = ha_rest_cache_slot(entity_id);
+    if (!slot) {
+        return;
+    }
+
+    slot->position = -1;
+    slot->have_position = 0;
 }
 
 size_t ha_rest_get_cached_count(void)

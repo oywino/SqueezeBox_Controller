@@ -19,6 +19,7 @@
 **/_rollback-*.tar
 
 # Generated binaries and logs
+**/.build-armv5/
 **/*.log
 **/a.out
 **/ha-remote-armv5

@@ -2,6 +2,18 @@
 
 ---
 
+## v0.8.20-phase-b-cover-card-action — 2026-05-02
+
+- Added Cover card controls for `cover.screen_sov_2` using the dedicated media keys: `<<` opens, `||` stops, and `>>` closes.
+- Replaced placeholder cover symbols with manually drawn filled triangle controls plus the approved pause/stop symbol.
+- Added command-driven cover animation: opening and closing triangles animate blue/black while motion is active.
+- Updated cover animation stop behavior to use `current_position`: opening stops at `100`, closing stops at `0`, and Stop halts animation immediately.
+- Added targeted cover state refresh while motion animation is active because the HA cover entity does not provide reliable `opening`/`closing` states and only updates `current_position` on stop/final events.
+- Added reusable `build_incremental.sh` for object-cached ARMv5 rebuilds so unchanged modules are not recompiled on future small changes.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified the Cover card behavior looks correct.
+
+---
+
 ## v0.8.19-phase-b-light-card-action — 2026-05-01
 
 - Extended the approved toggle-card visual pattern to the Light card: `Sov 2 Tak` left-aligned with a right-side state-driven toggle indicator.

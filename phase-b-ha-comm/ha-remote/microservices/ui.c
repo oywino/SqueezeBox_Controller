@@ -10,6 +10,7 @@
 #include "status_cache.h"
 #include "ha_ws.h"
 #include "assets/jive_assets.h"
+#include "src/draw/lv_draw_triangle.h"
 #include "src/extra/libs/tiny_ttf/lv_tiny_ttf.h"
 
 #define SCREEN_W 240
@@ -34,12 +35,17 @@
 #define CARD_Y0 8
 #define CARD_STEP 78
 #define CARD_SCROLL_MIN_MS 250
+#define COVER_ANIM_FIRST_MS 500
+#define COVER_ANIM_GAP_MS 250
+#define COVER_ANIM_CYCLE_MS (COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS + COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS)
 
 static int g_should_exit = 0;
 static int g_menu_visible = 0;
 static int g_menu_selected = 0;
 static int g_card_top = 0;
 static int g_card_focus = 0;
+static int g_cover_motion = 0;
+static uint64_t g_last_cover_refresh_ms = 0;
 static uint64_t g_last_card_scroll_ms = 0;
 static lv_obj_t *g_wifi_img = NULL;
 static lv_obj_t *g_time_label = NULL;
@@ -50,6 +56,11 @@ static lv_obj_t *g_card_titles[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_card_states[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_card_toggle_tracks[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_card_toggle_knobs[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_cover_left_1[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_cover_left_2[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_cover_pause[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_cover_right_1[CARD_VISIBLE_COUNT] = { NULL };
+static lv_obj_t *g_cover_right_2[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_menu_panel = NULL;
 static lv_obj_t *g_menu_rows[MENU_ROW_COUNT] = { NULL };
 static lv_obj_t *g_menu_labels[MENU_ROW_COUNT] = { NULL };
@@ -59,6 +70,14 @@ static lv_font_t *g_font_menu_sel = NULL;
 static lv_font_t *g_font_title = NULL;
 static lv_font_t *g_font_state = NULL;
 static lv_font_t *g_font_small = NULL;
+static void (*g_cover_refresh_cb)(void) = NULL;
+
+struct cover_triangle_state {
+  int direction;
+  uint32_t color;
+};
+
+static struct cover_triangle_state g_cover_triangle_state[CARD_VISIBLE_COUNT][4];
 
 struct ui_card_def {
   const char *title;
@@ -141,9 +160,68 @@ static lv_obj_t *make_label(lv_obj_t *parent, const char *text, uint32_t color)
   return label;
 }
 
+static void cover_triangle_draw_cb(lv_event_t *e)
+{
+  struct cover_triangle_state *state = lv_event_get_user_data(e);
+  lv_draw_ctx_t *draw_ctx = lv_event_get_draw_ctx(e);
+  lv_obj_t *obj = lv_event_get_target(e);
+  lv_area_t a;
+  lv_point_t points[3];
+  lv_draw_rect_dsc_t draw_dsc;
+
+  if(!state || !draw_ctx || !obj) return;
+
+  lv_obj_get_coords(obj, &a);
+  if(state->direction < 0) {
+    points[0].x = a.x2; points[0].y = a.y1;
+    points[1].x = a.x1; points[1].y = a.y1 + (a.y2 - a.y1) / 2;
+    points[2].x = a.x2; points[2].y = a.y2;
+  } else {
+    points[0].x = a.x1; points[0].y = a.y1;
+    points[1].x = a.x2; points[1].y = a.y1 + (a.y2 - a.y1) / 2;
+    points[2].x = a.x1; points[2].y = a.y2;
+  }
+
+  lv_draw_rect_dsc_init(&draw_dsc);
+  draw_dsc.bg_color = lv_color_hex(state->color);
+  draw_dsc.bg_opa = LV_OPA_COVER;
+  lv_draw_triangle(draw_ctx, &draw_dsc, points);
+}
+
+static void set_triangle_color(lv_obj_t *obj, uint32_t color)
+{
+  struct cover_triangle_state *state;
+  if(!obj) return;
+  state = lv_obj_get_event_user_data(obj, cover_triangle_draw_cb);
+  if(!state) return;
+  if(state->color == color) return;
+  state->color = color;
+  lv_obj_invalidate(obj);
+}
+
+static lv_obj_t *make_triangle(lv_obj_t *parent, int slot, int idx, int direction, uint32_t color)
+{
+  lv_obj_t *triangle = lv_obj_create(parent);
+  lv_obj_remove_style_all(triangle);
+  lv_obj_set_size(triangle, 18, 22);
+  lv_obj_clear_flag(triangle, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(triangle, LV_OBJ_FLAG_SCROLLABLE);
+  g_cover_triangle_state[slot][idx].direction = direction;
+  g_cover_triangle_state[slot][idx].color = color;
+  lv_obj_add_event_cb(triangle, cover_triangle_draw_cb, LV_EVENT_DRAW_MAIN, &g_cover_triangle_state[slot][idx]);
+  return triangle;
+}
+
 static void set_label_font(lv_obj_t *label, const lv_font_t *font)
 {
   if(font) lv_obj_set_style_text_font(label, font, 0);
+}
+
+static void set_obj_hidden(lv_obj_t *obj, int hidden)
+{
+  if(!obj) return;
+  if(hidden) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void init_fonts(void)
@@ -162,6 +240,7 @@ static void set_card_slot(int slot)
 {
   int card_idx = g_card_top + slot;
   int active = (slot == g_card_focus);
+  int is_cover = 0;
   int is_light = 0;
   int is_switch = 0;
   int toggle_on = 0;
@@ -172,15 +251,34 @@ static void set_card_slot(int slot)
   if(slot < 0 || slot >= CARD_VISIBLE_COUNT || card_idx >= CARD_COUNT) return;
   if(!g_card_panels[slot] || !g_card_titles[slot] || !g_card_states[slot] ||
      !g_card_icons[slot] ||
-     !g_card_toggle_tracks[slot] || !g_card_toggle_knobs[slot]) return;
+     !g_card_toggle_tracks[slot] || !g_card_toggle_knobs[slot] ||
+     !g_cover_left_1[slot] || !g_cover_left_2[slot] ||
+     !g_cover_pause[slot] || !g_cover_right_1[slot] || !g_cover_right_2[slot]) return;
 
+  is_cover = strcmp(g_cards[card_idx].entity_id, "cover.screen_sov_2") == 0;
   is_light = strcmp(g_cards[card_idx].entity_id, "light.sov_2_tak") == 0;
   is_switch = strcmp(g_cards[card_idx].entity_id, "switch.ikea_power_plug") == 0;
 
   lv_obj_set_style_bg_color(g_card_panels[slot], lv_color_hex(fill), 0);
   lv_obj_set_style_text_color(g_card_titles[slot], lv_color_hex(0x101010), 0);
 
-  if(is_light || is_switch) {
+  set_obj_hidden(g_cover_left_1[slot], !is_cover);
+  set_obj_hidden(g_cover_left_2[slot], !is_cover);
+  set_obj_hidden(g_cover_pause[slot], !is_cover);
+  set_obj_hidden(g_cover_right_1[slot], !is_cover);
+  set_obj_hidden(g_cover_right_2[slot], !is_cover);
+
+  if(is_cover) {
+    lv_obj_add_flag(g_card_icons[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_card_toggle_tracks[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_card_toggle_knobs[slot], LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(g_card_titles[slot], "Sov 2 Screen");
+    lv_obj_set_width(g_card_titles[slot], MAIN_W - 16);
+    lv_obj_set_style_text_align(g_card_titles[slot], LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(g_card_titles[slot], LV_ALIGN_TOP_MID, 0, 8);
+    lv_label_set_text(g_card_states[slot], "");
+    lv_obj_add_flag(g_card_states[slot], LV_OBJ_FLAG_HIDDEN);
+  } else if(is_light || is_switch) {
     cached_state = ha_rest_get_cached_state(g_cards[card_idx].entity_id);
     toggle_on = cached_state && strcmp(cached_state, "on") == 0;
 
@@ -188,6 +286,8 @@ static void set_card_slot(int slot)
     lv_obj_clear_flag(g_card_toggle_tracks[slot], LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(g_card_toggle_knobs[slot], LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(g_card_titles[slot], is_light ? "Sov 2 Tak" : "IKEA Power Plug");
+    lv_obj_set_width(g_card_titles[slot], 140);
+    lv_obj_set_style_text_align(g_card_titles[slot], LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_align(g_card_titles[slot], LV_ALIGN_LEFT_MID, 16, 0);
     lv_label_set_text(g_card_states[slot], "");
     lv_obj_add_flag(g_card_states[slot], LV_OBJ_FLAG_HIDDEN);
@@ -201,12 +301,78 @@ static void set_card_slot(int slot)
     lv_obj_add_flag(g_card_toggle_knobs[slot], LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(g_card_icons[slot], LV_SYMBOL_HOME);
     lv_obj_set_style_text_color(g_card_icons[slot], lv_color_hex(0x101010), 0);
+    lv_obj_set_width(g_card_titles[slot], 140);
+    lv_obj_set_style_text_align(g_card_titles[slot], LV_TEXT_ALIGN_LEFT, 0);
     lv_label_set_text(g_card_titles[slot], g_cards[card_idx].title);
     lv_obj_align(g_card_titles[slot], LV_ALIGN_TOP_LEFT, 46, 14);
     lv_obj_clear_flag(g_card_states[slot], LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(g_card_states[slot], g_cards[card_idx].entity_id);
     lv_obj_set_style_text_color(g_card_states[slot], lv_color_hex(state_color), 0);
   }
+}
+
+static void update_cover_animation(void)
+{
+  uint64_t now = ms_now();
+  int phase = (int)(now % COVER_ANIM_CYCLE_MS);
+
+  for(int slot = 0; slot < CARD_VISIBLE_COUNT; ++slot) {
+    int card_idx = g_card_top + slot;
+    const char *state;
+    int opening;
+    int closing;
+    int position = -1;
+    lv_obj_t *first = NULL;
+    lv_obj_t *second = NULL;
+
+    if(card_idx < 0 || card_idx >= CARD_COUNT) continue;
+    if(strcmp(g_cards[card_idx].entity_id, "cover.screen_sov_2") != 0) continue;
+
+    state = ha_rest_get_cached_state("cover.screen_sov_2");
+    if(g_cover_motion != 0 &&
+       ha_rest_get_cached_position("cover.screen_sov_2", &position) &&
+       ((g_cover_motion < 0 && position >= 100) ||
+        (g_cover_motion > 0 && position <= 0))) {
+      g_cover_motion = 0;
+    }
+    if(g_cover_motion != 0 && g_cover_refresh_cb &&
+       now - g_last_cover_refresh_ms >= 1000) {
+      g_last_cover_refresh_ms = now;
+      g_cover_refresh_cb();
+    }
+    opening = g_cover_motion < 0 || (state && strcmp(state, "opening") == 0);
+    closing = g_cover_motion > 0 || (state && strcmp(state, "closing") == 0);
+
+    set_triangle_color(g_cover_left_1[slot], 0x101010);
+    set_triangle_color(g_cover_left_2[slot], 0x101010);
+    set_triangle_color(g_cover_right_1[slot], 0x101010);
+    set_triangle_color(g_cover_right_2[slot], 0x101010);
+    lv_obj_set_style_text_color(g_cover_pause[slot], lv_color_hex(0x101010), 0);
+
+    if(closing) {
+      first = g_cover_right_1[slot];
+      second = g_cover_right_2[slot];
+    } else if(opening) {
+      first = g_cover_left_1[slot];
+      second = g_cover_left_2[slot];
+    } else {
+      continue;
+    }
+
+    if(phase < COVER_ANIM_FIRST_MS) {
+      set_triangle_color(first, 0x006DCC);
+    } else if(phase < COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS) {
+      /* both black */
+    } else if(phase < COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS + COVER_ANIM_FIRST_MS) {
+      set_triangle_color(second, 0x006DCC);
+    }
+  }
+}
+
+static void cover_anim_timer_cb(lv_timer_t *t)
+{
+  (void)t;
+  update_cover_animation();
 }
 
 static void refresh_cards(void)
@@ -242,12 +408,33 @@ static void build_card_slot(lv_obj_t *main_area, int slot)
   lv_obj_add_flag(toggle, LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_flag(knob, LV_OBJ_FLAG_HIDDEN);
 
+  lv_obj_t *left1 = make_triangle(card, slot, 0, -1, 0x101010);
+  lv_obj_t *left2 = make_triangle(card, slot, 1, -1, 0x101010);
+  lv_obj_t *pause = make_label(card, LV_SYMBOL_PAUSE, 0x101010);
+  lv_obj_t *right1 = make_triangle(card, slot, 2, 1, 0x101010);
+  lv_obj_t *right2 = make_triangle(card, slot, 3, 1, 0x101010);
+  lv_obj_align(left1, LV_ALIGN_TOP_MID, -57, 38);
+  lv_obj_align(left2, LV_ALIGN_TOP_MID, -36, 38);
+  lv_obj_align(pause, LV_ALIGN_TOP_MID, 0, 36);
+  lv_obj_align(right1, LV_ALIGN_TOP_MID, 36, 38);
+  lv_obj_align(right2, LV_ALIGN_TOP_MID, 57, 38);
+  lv_obj_add_flag(left1, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(left2, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(pause, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(right1, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(right2, LV_OBJ_FLAG_HIDDEN);
+
   g_card_panels[slot] = card;
   g_card_icons[slot] = icon;
   g_card_titles[slot] = name;
   g_card_states[slot] = value;
   g_card_toggle_tracks[slot] = toggle;
   g_card_toggle_knobs[slot] = knob;
+  g_cover_left_1[slot] = left1;
+  g_cover_left_2[slot] = left2;
+  g_cover_pause[slot] = pause;
+  g_cover_right_1[slot] = right1;
+  g_cover_right_2[slot] = right2;
   set_card_slot(slot);
 }
 
@@ -342,6 +529,11 @@ void ui_init(lv_group_t *grp)
     g_card_states[i] = NULL;
     g_card_toggle_tracks[i] = NULL;
     g_card_toggle_knobs[i] = NULL;
+    g_cover_left_1[i] = NULL;
+    g_cover_left_2[i] = NULL;
+    g_cover_pause[i] = NULL;
+    g_cover_right_1[i] = NULL;
+    g_cover_right_2[i] = NULL;
   }
   for(int i = 0; i < MENU_ROW_COUNT; ++i) {
     g_menu_rows[i] = NULL;
@@ -381,6 +573,7 @@ void ui_init(lv_group_t *grp)
   status_update();
   lv_timer_create(status_timer_cb, 1000, NULL);
   lv_timer_create(ha_poll_timer_cb, 100, NULL);
+  lv_timer_create(cover_anim_timer_cb, 20, NULL);
 
   (void)grp;
 }
@@ -393,6 +586,35 @@ int ui_should_exit(void)
 void ui_toggle_menu(void)
 {
   set_menu_visible(!g_menu_visible);
+}
+
+void ui_cover_note_command(const char *entity_id, const char *command)
+{
+  int position = -1;
+  int have_position;
+  if(!entity_id || strcmp(entity_id, "cover.screen_sov_2") != 0 || !command) return;
+
+  have_position = ha_rest_get_cached_position("cover.screen_sov_2", &position);
+
+  if(strcmp(command, "opening") == 0) {
+    g_cover_motion = have_position && position >= 100 ? 0 : -1;
+    if(g_cover_motion != 0) ha_rest_clear_cached_position("cover.screen_sov_2");
+  } else if(strcmp(command, "closing") == 0) {
+    g_cover_motion = have_position && position <= 0 ? 0 : 1;
+    if(g_cover_motion != 0) ha_rest_clear_cached_position("cover.screen_sov_2");
+  } else {
+    g_cover_motion = 0;
+    ha_rest_clear_cached_position("cover.screen_sov_2");
+  }
+  fprintf(stderr, "[ui_cover] command=%s cached_position=%d motion=%d\n",
+          command,
+          position,
+          g_cover_motion);
+}
+
+void ui_set_cover_refresh_callback(void (*refresh)(void))
+{
+  g_cover_refresh_cb = refresh;
 }
 
 int ui_menu_wheel(int diff)

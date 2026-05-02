@@ -19,6 +19,8 @@ void ui_emergency_exit(void);
 int ui_menu_wheel(int diff);
 int ui_menu_is_visible(void);
 void ui_refresh_cards(void);
+void ui_cover_note_command(const char *entity_id, const char *command);
+void ui_set_cover_refresh_callback(void (*refresh)(void));
 const char *ui_focused_card_entity_id(void);
 
 /* Backend → UI bridge for HA status updates. */
