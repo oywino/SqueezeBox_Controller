@@ -2,6 +2,14 @@
 
 ---
 
+## v0.8.21-phase-b-cover-animation-visual-tune — 2026-05-02
+
+- Enlarged the Cover card Stop symbol to better align visually with the open/close triangle controls.
+- Changed the active cover animation color from blue to bright white.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user approved the visual adjustment.
+
+---
+
 ## v0.8.20-phase-b-cover-card-action — 2026-05-02
 
 - Added Cover card controls for `cover.screen_sov_2` using the dedicated media keys: `<<` opens, `||` stops, and `>>` closes.

@@ -38,6 +38,7 @@
 #define COVER_ANIM_FIRST_MS 500
 #define COVER_ANIM_GAP_MS 250
 #define COVER_ANIM_CYCLE_MS (COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS + COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS)
+#define COVER_ANIM_COLOR 0xFFFFFF
 
 static int g_should_exit = 0;
 static int g_menu_visible = 0;
@@ -212,6 +213,18 @@ static lv_obj_t *make_triangle(lv_obj_t *parent, int slot, int idx, int directio
   return triangle;
 }
 
+static lv_obj_t *make_pause_symbol(lv_obj_t *parent, uint32_t color)
+{
+  lv_obj_t *pause = lv_obj_create(parent);
+  lv_obj_remove_style_all(pause);
+  lv_obj_set_size(pause, 22, 24);
+  lv_obj_clear_flag(pause, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(pause, LV_OBJ_FLAG_SCROLLABLE);
+  (void)make_panel(pause, 4, 1, 5, 22, color, 0);
+  (void)make_panel(pause, 13, 1, 5, 22, color, 0);
+  return pause;
+}
+
 static void set_label_font(lv_obj_t *label, const lv_font_t *font)
 {
   if(font) lv_obj_set_style_text_font(label, font, 0);
@@ -360,11 +373,11 @@ static void update_cover_animation(void)
     }
 
     if(phase < COVER_ANIM_FIRST_MS) {
-      set_triangle_color(first, 0x006DCC);
+      set_triangle_color(first, COVER_ANIM_COLOR);
     } else if(phase < COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS) {
       /* both black */
     } else if(phase < COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS + COVER_ANIM_FIRST_MS) {
-      set_triangle_color(second, 0x006DCC);
+      set_triangle_color(second, COVER_ANIM_COLOR);
     }
   }
 }
@@ -410,12 +423,12 @@ static void build_card_slot(lv_obj_t *main_area, int slot)
 
   lv_obj_t *left1 = make_triangle(card, slot, 0, -1, 0x101010);
   lv_obj_t *left2 = make_triangle(card, slot, 1, -1, 0x101010);
-  lv_obj_t *pause = make_label(card, LV_SYMBOL_PAUSE, 0x101010);
+  lv_obj_t *pause = make_pause_symbol(card, 0x101010);
   lv_obj_t *right1 = make_triangle(card, slot, 2, 1, 0x101010);
   lv_obj_t *right2 = make_triangle(card, slot, 3, 1, 0x101010);
   lv_obj_align(left1, LV_ALIGN_TOP_MID, -57, 38);
   lv_obj_align(left2, LV_ALIGN_TOP_MID, -36, 38);
-  lv_obj_align(pause, LV_ALIGN_TOP_MID, 0, 36);
+  lv_obj_align(pause, LV_ALIGN_TOP_MID, 0, 37);
   lv_obj_align(right1, LV_ALIGN_TOP_MID, 36, 38);
   lv_obj_align(right2, LV_ALIGN_TOP_MID, 57, 38);
   lv_obj_add_flag(left1, LV_OBJ_FLAG_HIDDEN);
