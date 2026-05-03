@@ -276,6 +276,13 @@ static int media_state_loaded(const char *state)
   return 1;
 }
 
+static int media_loaded_now(void)
+{
+  const char *state = ha_rest_get_cached_state("media_player.squeezebox_boom");
+  const char *title = ha_rest_get_cached_media_title("media_player.squeezebox_boom");
+  return media_state_loaded(state) && title && *title;
+}
+
 static void set_obj_hidden(lv_obj_t *obj, int hidden)
 {
   if(!obj) return;
@@ -323,6 +330,7 @@ static void set_card_slot(int slot)
 
   lv_obj_set_style_bg_color(g_card_panels[slot], lv_color_hex(fill), 0);
   lv_obj_set_style_text_color(g_card_titles[slot], lv_color_hex(0x101010), 0);
+  lv_obj_clear_flag(g_card_panels[slot], LV_OBJ_FLAG_HIDDEN);
 
   set_obj_hidden(g_cover_left_1[slot], !is_cover);
   set_obj_hidden(g_cover_left_2[slot], !is_cover);
@@ -358,9 +366,6 @@ static void set_card_slot(int slot)
                               0);
     lv_obj_set_x(g_card_toggle_knobs[slot], toggle_on ? 18 : 2);
   } else if(is_media) {
-    media_title = ha_rest_get_cached_media_title(g_cards[card_idx].entity_id);
-    cached_state = ha_rest_get_cached_state(g_cards[card_idx].entity_id);
-
     lv_obj_add_flag(g_card_icons[slot], LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(g_card_toggle_tracks[slot], LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(g_card_toggle_knobs[slot], LV_OBJ_FLAG_HIDDEN);
@@ -369,8 +374,7 @@ static void set_card_slot(int slot)
     lv_obj_set_style_text_align(g_card_titles[slot], LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(g_card_titles[slot], LV_ALIGN_TOP_MID, 0, 16);
     lv_obj_clear_flag(g_card_states[slot], LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(g_card_states[slot],
-                      (media_state_loaded(cached_state) && media_title) ? media_title : "Nothing");
+    lv_label_set_text(g_card_states[slot], "Nothing");
     lv_obj_set_width(g_card_states[slot], MAIN_W - 24);
     lv_obj_set_style_text_align(g_card_states[slot], LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(g_card_states[slot], LV_ALIGN_TOP_MID, 0, 40);
@@ -420,11 +424,11 @@ static void update_media_view(void)
   lv_obj_clear_flag(g_media_view, LV_OBJ_FLAG_HIDDEN);
   lv_label_set_text(g_media_title, title);
   if(state && strcmp(state, "playing") == 0) {
-    lv_obj_clear_flag(g_media_play_icon, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(g_media_pause_icon, LV_OBJ_FLAG_HIDDEN);
-  } else {
     lv_obj_add_flag(g_media_play_icon, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(g_media_pause_icon, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_clear_flag(g_media_play_icon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_media_pause_icon, LV_OBJ_FLAG_HIDDEN);
   }
 
   if(artist && album) snprintf(artist_album, sizeof(artist_album), "%s • %s", artist, album);
@@ -533,7 +537,12 @@ static void media_view_timer_cb(lv_timer_t *t)
 
 static void refresh_cards(void)
 {
+  if(media_loaded_now() && g_card_top + g_card_focus != 3) {
+    g_card_top = 0;
+    if(g_card_focus > 2) g_card_focus = 2;
+  }
   for(int i = 0; i < CARD_VISIBLE_COUNT; ++i) {
+    lv_obj_clear_flag(g_card_panels[i], LV_OBJ_FLAG_HIDDEN);
     set_card_slot(i);
   }
   update_media_view();
@@ -840,6 +849,7 @@ int ui_menu_wheel(int diff)
     int old_top = g_card_top;
     int old_focus = g_card_focus;
     int selected = g_card_top + g_card_focus;
+    int media_loaded = media_loaded_now();
     uint64_t now = ms_now();
 
     if(g_last_card_scroll_ms != 0 && now - g_last_card_scroll_ms < CARD_SCROLL_MIN_MS) {
@@ -853,7 +863,10 @@ int ui_menu_wheel(int diff)
         g_card_top++;
       }
     } else if(diff < 0 && selected > 0) {
-      if(g_card_focus > 0) {
+      if(media_loaded && selected == 3) {
+        g_card_top = 0;
+        g_card_focus = 2;
+      } else if(g_card_focus > 0) {
         g_card_focus--;
       } else {
         g_card_top--;

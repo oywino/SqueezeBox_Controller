@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.23-phase-b-media-play-pause — 2026-05-03
+
+- Added Media card Play/Pause action: the `||` key calls `media_player.media_play_pause` for `media_player.squeezebox_boom` when the Media card is focused.
+- Kept the existing Cover Stop behavior on the same `||` key when the Cover card is focused.
+- Updated the now-playing icon so it shows Pause while HA reports `playing`, and Play otherwise.
+- Adjusted loaded Media card navigation: loaded media renders only as the full-screen now-playing view when focused; moving focus away returns the list to Light, Cover, and Switch only.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified behavior.
+
+---
+
 ## v0.8.22-phase-b-media-card-artwork — 2026-05-02
 
 - Added Media Player card behavior for `media_player.squeezebox_boom`: idle/empty media shows a standard card with `Squeezebox Boom` / `Nothing`, while loaded media expands into the approved Jive-style now-playing layout when focused.

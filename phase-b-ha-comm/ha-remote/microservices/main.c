@@ -32,6 +32,8 @@
 #define MVP_COVER_OPEN_SERVICE "cover.open_cover"
 #define MVP_SWITCH_ENTITY_ID "switch.ikea_power_plug"
 #define MVP_SWITCH_SERVICE "switch.toggle"
+#define MVP_MEDIA_ENTITY_ID "media_player.squeezebox_boom"
+#define MVP_MEDIA_PLAY_PAUSE_SERVICE "media_player.media_play_pause"
 
 static pthread_mutex_t g_action_lock = PTHREAD_MUTEX_INITIALIZER;
 static int g_action_in_flight = 0;
@@ -278,6 +280,63 @@ static void stop_focused_cover(void)
     call_cover_service(MVP_COVER_STOP_SERVICE, "stopped");
 }
 
+static void play_pause_focused_media(void)
+{
+    const char *base_url;
+    const char *token;
+    char base_url_buf[128];
+    char token_buf[256];
+    const char *focused_entity = ui_focused_card_entity_id();
+
+    if (strcmp(focused_entity, MVP_MEDIA_ENTITY_ID) != 0) {
+        fprintf(stderr,
+                "[ha_action] media play/pause ignored: focused entity=%s\n",
+                focused_entity && *focused_entity ? focused_entity : "<none>");
+        return;
+    }
+
+    pthread_mutex_lock(&g_action_lock);
+    if (g_action_in_flight) {
+        pthread_mutex_unlock(&g_action_lock);
+        fprintf(stderr, "[ha_action] media play/pause ignored: action in flight\n");
+        return;
+    }
+    g_action_in_flight = 1;
+    pthread_mutex_unlock(&g_action_lock);
+
+    resolve_ha_connection(base_url_buf,
+                          sizeof(base_url_buf),
+                          token_buf,
+                          sizeof(token_buf),
+                          &base_url,
+                          &token);
+
+    (void)ha_rest_call_service(base_url,
+                               token,
+                               MVP_MEDIA_PLAY_PAUSE_SERVICE,
+                               MVP_MEDIA_ENTITY_ID);
+    ui_refresh_cards();
+
+    pthread_mutex_lock(&g_action_lock);
+    g_action_in_flight = 0;
+    pthread_mutex_unlock(&g_action_lock);
+}
+
+static void pause_key_action(void)
+{
+    const char *focused_entity = ui_focused_card_entity_id();
+
+    if (strcmp(focused_entity, MVP_COVER_ENTITY_ID) == 0) {
+        stop_focused_cover();
+    } else if (strcmp(focused_entity, MVP_MEDIA_ENTITY_ID) == 0) {
+        play_pause_focused_media();
+    } else {
+        fprintf(stderr,
+                "[ha_action] pause key ignored: focused entity=%s\n",
+                focused_entity && *focused_entity ? focused_entity : "<none>");
+    }
+}
+
 static void open_focused_cover(void)
 {
     call_cover_service(MVP_COVER_OPEN_SERVICE, "opening");
@@ -337,7 +396,7 @@ int main(void)
     input_set_key_callbacks(KEY_HOME, ui_toggle_menu, ui_emergency_exit);
     input_set_key_callbacks(ENCODER_PUSH_CODE, toggle_focused_binary_card, NULL);
     input_set_key_callbacks(SB_KEY_REWIND, open_focused_cover, NULL);
-    input_set_key_callbacks(SB_KEY_PAUSE, stop_focused_cover, NULL);
+    input_set_key_callbacks(SB_KEY_PAUSE, pause_key_action, NULL);
     input_set_key_callbacks(SB_KEY_FASTFORWARD, close_focused_cover, NULL);
     input_set_wheel_callback(ui_menu_wheel);
     input_set_activity_callback(input_activity);
