@@ -19,6 +19,7 @@
 #include "power_manager.h"
 #include "status_cache.h"
 #include "media_art.h"
+#include "ha_action_queue.h"
 
 #define ENCODER_PUSH_CODE 106
 #define SB_KEY_REWIND 165
@@ -34,9 +35,6 @@
 #define MVP_SWITCH_SERVICE "switch.toggle"
 #define MVP_MEDIA_ENTITY_ID "media_player.squeezebox_boom"
 #define MVP_MEDIA_PLAY_PAUSE_SERVICE "media_player.media_play_pause"
-
-static pthread_mutex_t g_action_lock = PTHREAD_MUTEX_INITIALIZER;
-static int g_action_in_flight = 0;
 
 static uint64_t ms_now(void)
 {
@@ -131,19 +129,7 @@ static void fetch_configured_ha_states(void)
 
 static void fetch_cover_state(void)
 {
-    const char *base_url;
-    const char *token;
-    char base_url_buf[128];
-    char token_buf[256];
-
-    resolve_ha_connection(base_url_buf,
-                          sizeof(base_url_buf),
-                          token_buf,
-                          sizeof(token_buf),
-                          &base_url,
-                          &token);
-
-    (void)ha_rest_fetch_state(base_url, token, MVP_COVER_ENTITY_ID);
+    (void)ha_action_enqueue_fetch_state(MVP_COVER_ENTITY_ID);
 }
 
 static void start_ha_state_subscription(void)
@@ -180,12 +166,33 @@ static void start_media_art_service(void)
     (void)media_art_start(base_url, token, "media_player.squeezebox_boom");
 }
 
-static void toggle_focused_binary_card(void)
+static void start_ha_action_queue(void)
 {
     const char *base_url;
     const char *token;
     char base_url_buf[128];
     char token_buf[256];
+
+    resolve_ha_connection(base_url_buf,
+                          sizeof(base_url_buf),
+                          token_buf,
+                          sizeof(token_buf),
+                          &base_url,
+                          &token);
+
+    (void)ha_action_queue_start(base_url, token);
+}
+
+static void ha_action_poll_timer_cb(lv_timer_t *t)
+{
+    (void)t;
+    if (ha_action_consume_refresh_pending()) {
+        ui_refresh_cards();
+    }
+}
+
+static void toggle_focused_binary_card(void)
+{
     const char *focused_entity = ui_focused_card_entity_id();
     const char *service = NULL;
 
@@ -202,39 +209,11 @@ static void toggle_focused_binary_card(void)
         return;
     }
 
-    pthread_mutex_lock(&g_action_lock);
-    if (g_action_in_flight) {
-        pthread_mutex_unlock(&g_action_lock);
-        fprintf(stderr, "[ha_action] toggle ignored: action in flight\n");
-        return;
-    }
-    g_action_in_flight = 1;
-    pthread_mutex_unlock(&g_action_lock);
-
-    resolve_ha_connection(base_url_buf,
-                          sizeof(base_url_buf),
-                          token_buf,
-                          sizeof(token_buf),
-                          &base_url,
-                          &token);
-
-    (void)ha_rest_call_service(base_url,
-                               token,
-                               service,
-                               focused_entity);
-    ui_refresh_cards();
-
-    pthread_mutex_lock(&g_action_lock);
-    g_action_in_flight = 0;
-    pthread_mutex_unlock(&g_action_lock);
+    (void)ha_action_enqueue_service(service, focused_entity);
 }
 
 static void call_cover_service(const char *service, const char *motion)
 {
-    const char *base_url;
-    const char *token;
-    char base_url_buf[128];
-    char token_buf[256];
     const char *focused_entity = ui_focused_card_entity_id();
 
     if (strcmp(focused_entity, MVP_COVER_ENTITY_ID) != 0) {
@@ -246,28 +225,7 @@ static void call_cover_service(const char *service, const char *motion)
 
     ui_cover_note_command(MVP_COVER_ENTITY_ID, motion);
 
-    pthread_mutex_lock(&g_action_lock);
-    if (g_action_in_flight) {
-        pthread_mutex_unlock(&g_action_lock);
-        fprintf(stderr, "[ha_action] cover action ignored: action in flight\n");
-        return;
-    }
-    g_action_in_flight = 1;
-    pthread_mutex_unlock(&g_action_lock);
-
-    resolve_ha_connection(base_url_buf,
-                          sizeof(base_url_buf),
-                          token_buf,
-                          sizeof(token_buf),
-                          &base_url,
-                          &token);
-
-    (void)ha_rest_call_service(base_url, token, service, MVP_COVER_ENTITY_ID);
-    ui_refresh_cards();
-
-    pthread_mutex_lock(&g_action_lock);
-    g_action_in_flight = 0;
-    pthread_mutex_unlock(&g_action_lock);
+    (void)ha_action_enqueue_service(service, MVP_COVER_ENTITY_ID);
 }
 
 static void close_focused_cover(void)
@@ -282,10 +240,6 @@ static void stop_focused_cover(void)
 
 static void play_pause_focused_media(void)
 {
-    const char *base_url;
-    const char *token;
-    char base_url_buf[128];
-    char token_buf[256];
     const char *focused_entity = ui_focused_card_entity_id();
 
     if (strcmp(focused_entity, MVP_MEDIA_ENTITY_ID) != 0) {
@@ -295,31 +249,7 @@ static void play_pause_focused_media(void)
         return;
     }
 
-    pthread_mutex_lock(&g_action_lock);
-    if (g_action_in_flight) {
-        pthread_mutex_unlock(&g_action_lock);
-        fprintf(stderr, "[ha_action] media play/pause ignored: action in flight\n");
-        return;
-    }
-    g_action_in_flight = 1;
-    pthread_mutex_unlock(&g_action_lock);
-
-    resolve_ha_connection(base_url_buf,
-                          sizeof(base_url_buf),
-                          token_buf,
-                          sizeof(token_buf),
-                          &base_url,
-                          &token);
-
-    (void)ha_rest_call_service(base_url,
-                               token,
-                               MVP_MEDIA_PLAY_PAUSE_SERVICE,
-                               MVP_MEDIA_ENTITY_ID);
-    ui_refresh_cards();
-
-    pthread_mutex_lock(&g_action_lock);
-    g_action_in_flight = 0;
-    pthread_mutex_unlock(&g_action_lock);
+    (void)ha_action_enqueue_service(MVP_MEDIA_PLAY_PAUSE_SERVICE, MVP_MEDIA_ENTITY_ID);
 }
 
 static void pause_key_action(void)
@@ -408,11 +338,13 @@ int main(void)
     if (config_loaded) {
         fetch_configured_ha_states();
         ui_refresh_cards();
+        start_ha_action_queue();
         start_media_art_service();
         start_ha_state_subscription();
     }
 
     lv_timer_create(ha_poll_timer_cb, 100, NULL);
+    lv_timer_create(ha_action_poll_timer_cb, 100, NULL);
 
     uint64_t last = ms_now();
     while (!ui_should_exit()) {
@@ -431,6 +363,7 @@ int main(void)
     }
 
     ha_session_close();
+    ha_action_queue_stop();
     media_art_stop();
     status_cache_stop();
     audio_feedback_stop();

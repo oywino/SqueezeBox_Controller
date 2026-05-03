@@ -2,6 +2,15 @@
 
 ---
 
+## v0.8.24-phase-b-ha-action-queue — 2026-05-03
+
+- Added `ha_action_queue` microservice so HA REST service calls and targeted state refreshes run off the UI/input path.
+- Updated Light/Switch Select, Cover media-key actions, Media Play/Pause, and Cover animation refresh to enqueue HA work instead of performing network calls directly from input or LVGL timer callbacks.
+- Kept card rendering and feature behavior unchanged; user verified marginal responsiveness improvement and existing actions still work.
+- Built and deployed to Squeezebox controller `192.168.1.65`.
+
+---
+
 ## v0.8.23-phase-b-media-play-pause — 2026-05-03
 
 - Added Media card Play/Pause action: the `||` key calls `media_player.media_play_pause` for `media_player.squeezebox_boom` when the Media card is focused.

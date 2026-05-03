@@ -71,6 +71,7 @@ Rules:
 - Cover animation visual tuning is hardware-approved at `v0.8.21-phase-b-cover-animation-visual-tune`: Stop is enlarged and active animation color is bright white.
 - Media Player card artwork is hardware-approved at `v0.8.22-phase-b-media-card-artwork`: idle media shows `Squeezebox Boom` / `Nothing`, loaded media expands into the approved Jive-style now-playing layout when focused, and album art is fetched/decoded off the UI thread into a 240x204 RGB565 surface.
 - Media Player Play/Pause is hardware-verified at `v0.8.23-phase-b-media-play-pause`: the `||` key toggles `media_player.squeezebox_boom` when Media is focused, the upper-right now-playing icon follows HA `playing` state, and loaded media is full-screen-only while focus away returns the list to Light/Cover/Switch.
+- HA action queue responsiveness refactor is hardware-verified at `v0.8.24-phase-b-ha-action-queue`: REST service calls and targeted cover refreshes now run off the UI/input path, with existing Light/Switch/Cover/Media behavior preserved.
 - `build_incremental.sh` is available for future ARMv5 builds so unchanged modules are not recompiled for small source changes.
 - Verified Home Assistant base URL for current runtime/config is `http://192.168.1.8:8123`; startup REST state fetch logs `4/4 ok`.
 

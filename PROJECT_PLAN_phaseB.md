@@ -125,7 +125,7 @@ Verified Phase B UI/runtime checkpoint:
   Cache only configured entities; apply event patches or REST refreshes only for configured entity IDs; redraw only changed regions; enforce per-domain rate caps.
 
 - [ ] **Step 11. Service call pipeline**  
-  Wire demo card actions to concrete HA services; success/error feedback; basic retries.
+  Wire demo card actions to concrete HA services; success/error feedback; basic retries. REST action execution has been moved off the UI/input path into `ha_action_queue` at `v0.8.24-phase-b-ha-action-queue`.
 
 - [ ] **Step 12. Minimal demo UI (“one screen per card type” PoC)**  
   Start with Light, Cover, Switch, and Media Player; wheel navigation; push/long-push actions; verify end-to-end loop.

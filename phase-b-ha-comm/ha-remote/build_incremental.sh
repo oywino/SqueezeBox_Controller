@@ -21,6 +21,7 @@ microservices/hal.c
 microservices/power_manager.c
 microservices/status_cache.c
 microservices/media_art.c
+microservices/ha_action_queue.c
 microservices/assets/jive_assets.c
 microservices/ui.c
 microservices/ha_config.c
