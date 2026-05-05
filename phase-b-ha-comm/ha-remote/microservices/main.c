@@ -37,12 +37,36 @@
 #define MVP_MEDIA_PLAY_PAUSE_SERVICE "media_player.media_play_pause"
 #define MVP_MEDIA_VOLUME_UP_SERVICE "media_player.volume_up"
 #define MVP_MEDIA_VOLUME_DOWN_SERVICE "media_player.volume_down"
+#define LOOP_TIMING_LOG_THRESHOLD_MS 25
 
 static uint64_t ms_now(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)ts.tv_nsec / 1000000ULL;
+}
+
+static void log_loop_timing(uint64_t gap_ms,
+                            uint64_t ha_ms,
+                            uint64_t input_ms,
+                            uint64_t lvgl_ms,
+                            uint64_t sleep_ms)
+{
+    if(gap_ms < LOOP_TIMING_LOG_THRESHOLD_MS &&
+       ha_ms < LOOP_TIMING_LOG_THRESHOLD_MS &&
+       input_ms < LOOP_TIMING_LOG_THRESHOLD_MS &&
+       lvgl_ms < LOOP_TIMING_LOG_THRESHOLD_MS &&
+       sleep_ms < LOOP_TIMING_LOG_THRESHOLD_MS) {
+        return;
+    }
+
+    fprintf(stderr,
+            "[loop_timing] gap=%llu ha=%llu input=%llu lvgl=%llu sleep=%llu\n",
+            (unsigned long long)gap_ms,
+            (unsigned long long)ha_ms,
+            (unsigned long long)input_ms,
+            (unsigned long long)lvgl_ms,
+            (unsigned long long)sleep_ms);
 }
 
 static int input_activity(void)
@@ -374,21 +398,46 @@ int main(void)
     lv_timer_create(ha_action_poll_timer_cb, 100, NULL);
 
     uint64_t last = ms_now();
+    uint64_t last_loop_end = last;
     while (!ui_should_exit()) {
-        uint64_t now = ms_now();
+        uint64_t loop_start = ms_now();
+        uint64_t phase_start;
+        uint64_t after_ha;
+        uint64_t after_input;
+        uint64_t after_lvgl;
+        uint64_t after_sleep;
+        uint64_t now = loop_start;
         uint32_t diff = (uint32_t)(now - last);
         last = now;
         power_manager_tick(now);
+        phase_start = ms_now();
         ha_ws_drain_state_updates();
+        after_ha = ms_now();
         input_pump_events();
+        after_input = ms_now();
         if (power_manager_is_sleeping()) {
             usleep(100000);
+            after_sleep = ms_now();
+            log_loop_timing(loop_start - last_loop_end,
+                            after_ha - phase_start,
+                            after_input - after_ha,
+                            0,
+                            after_sleep - after_input);
+            last_loop_end = after_sleep;
             continue;
         }
         lv_tick_inc(diff);
         lv_timer_handler();
-        input_note_lvgl_cycle_complete(ms_now());
+        after_lvgl = ms_now();
+        input_note_lvgl_cycle_complete(after_lvgl);
         usleep(5000);
+        after_sleep = ms_now();
+        log_loop_timing(loop_start - last_loop_end,
+                        after_ha - phase_start,
+                        after_input - after_ha,
+                        after_lvgl - after_input,
+                        after_sleep - after_lvgl);
+        last_loop_end = after_sleep;
     }
 
     ha_session_close();
