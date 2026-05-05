@@ -387,6 +387,7 @@ int main(void)
         }
         lv_tick_inc(diff);
         lv_timer_handler();
+        input_note_lvgl_cycle_complete(ms_now());
         usleep(5000);
     }
 

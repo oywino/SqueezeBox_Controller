@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <linux/input.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <time.h>
 
 #include "lvgl.h"
@@ -36,11 +37,15 @@ static struct key_binding g_key_bindings[INPUT_MAX_KEY_BINDINGS];
 
 static pthread_t g_input_thread;
 static pthread_mutex_t g_event_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t g_latency_lock = PTHREAD_MUTEX_INITIALIZER;
 static volatile int g_input_thread_running = 0;
 static int g_input_thread_started = 0;
 static struct hal_input_event g_event_queue[INPUT_EVENT_QUEUE_LEN];
 static unsigned int g_event_head = 0;
 static unsigned int g_event_tail = 0;
+static int64_t g_latency_wheel_first_ms = 0;
+static int g_latency_wheel_count = 0;
+static int g_latency_waiting_for_lvgl = 0;
 
 static int64_t mono_ms_now(void) {
     struct timespec ts;
@@ -54,6 +59,40 @@ static int event_queue_empty(void) {
 
 static int event_queue_full(void) {
     return ((g_event_tail + 1U) % INPUT_EVENT_QUEUE_LEN) == g_event_head;
+}
+
+static int wheel_delta_from_event(const struct hal_input_event *ev) {
+    int diff = 0;
+
+    if (!ev || ev->type != EV_REL) return 0;
+#ifdef REL_WHEEL
+    if (ev->code == REL_WHEEL) diff = ev->value;
+#endif
+#ifdef REL_DIAL
+    if (ev->code == REL_DIAL)  diff = ev->value;
+#endif
+    return diff;
+}
+
+static void latency_note_wheel_read(const struct hal_input_event *ev) {
+    int diff = wheel_delta_from_event(ev);
+
+    if (diff == 0) return;
+
+    pthread_mutex_lock(&g_latency_lock);
+    if (g_latency_wheel_first_ms == 0) {
+        g_latency_wheel_first_ms = ev->ts_ms ? ev->ts_ms : mono_ms_now();
+    }
+    g_latency_wheel_count += diff > 0 ? diff : -diff;
+    pthread_mutex_unlock(&g_latency_lock);
+}
+
+static void latency_note_wheel_flushed(void) {
+    pthread_mutex_lock(&g_latency_lock);
+    if (g_latency_wheel_first_ms != 0) {
+        g_latency_waiting_for_lvgl = 1;
+    }
+    pthread_mutex_unlock(&g_latency_lock);
 }
 
 static void event_queue_push(const struct hal_input_event *ev) {
@@ -85,6 +124,7 @@ static void *input_thread_main(void *arg) {
         struct hal_input_event ev;
         int rc = hal_poll_input(&ev, 100);
         if (rc > 0) {
+            latency_note_wheel_read(&ev);
             event_queue_push(&ev);
         }
     }
@@ -243,13 +283,7 @@ void input_pump_events(void) {
     struct hal_input_event ev;
     while (event_queue_pop(&ev)) {
         if (ev.type == EV_REL) {
-            int diff = 0;
-#ifdef REL_WHEEL
-            if (ev.code == REL_WHEEL) diff = ev.value;
-#endif
-#ifdef REL_DIAL
-            if (ev.code == REL_DIAL)  diff = ev.value;
-#endif
+            int diff = wheel_delta_from_event(&ev);
             if (diff != 0 && g_wheel_cb) {
                 g_pending_menu_wheel += diff;
                 continue;
@@ -272,8 +306,33 @@ void input_pump_events(void) {
         wheel_ev.value = step;
         wheel_ev.ts_ms = mono_ms_now();
         dispatch_hal_event(&wheel_ev);
+        latency_note_wheel_flushed();
     }
     input_check_key_longpress();
+}
+
+void input_note_lvgl_cycle_complete(uint64_t now_ms) {
+    int64_t first_ms;
+    int count;
+    int waiting;
+
+    pthread_mutex_lock(&g_latency_lock);
+    first_ms = g_latency_wheel_first_ms;
+    count = g_latency_wheel_count;
+    waiting = g_latency_waiting_for_lvgl;
+    if (waiting && first_ms != 0) {
+        g_latency_wheel_first_ms = 0;
+        g_latency_wheel_count = 0;
+        g_latency_waiting_for_lvgl = 0;
+    }
+    pthread_mutex_unlock(&g_latency_lock);
+
+    if (waiting && first_ms != 0) {
+        fprintf(stderr,
+                "[wheel_latency] detents=%d latency_ms=%llu\n",
+                count,
+                (unsigned long long)(now_ms - (uint64_t)first_ms));
+    }
 }
 
 /* LVGL v8 read callback: report already-dispatched encoder/button state. */

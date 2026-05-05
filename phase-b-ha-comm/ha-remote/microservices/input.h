@@ -6,6 +6,8 @@
 #define LV_CONF_INCLUDE_SIMPLE 1
 #endif
 
+#include <stdint.h>
+
 #include "lvgl/lvgl.h"
 
 /* Owns input device fds (wheel/keys/gyro), O_NONBLOCK, EVIOCGRAB lifecycle. */
@@ -23,6 +25,9 @@ void input_set_activity_callback(int (*activity)(void));
 
 /* Drain queued Linux input events from the UI/main loop. */
 void input_pump_events(void);
+
+/* Temporary latency instrumentation: call after the LVGL cycle completes. */
+void input_note_lvgl_cycle_complete(uint64_t now_ms);
 
 /* LVGL indev read callback (encoder+button). */
 void indev_encoder_read(lv_indev_drv_t *drv, lv_indev_data_t *data);
