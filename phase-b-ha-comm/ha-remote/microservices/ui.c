@@ -39,6 +39,10 @@
 #define COVER_ANIM_GAP_MS 250
 #define COVER_ANIM_CYCLE_MS (COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS + COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS)
 #define COVER_ANIM_COLOR 0xFFFFFF
+#define NAV_SETTLE_MS 400
+#define MEDIA_VIEW_IDLE_MS 250
+#define MEDIA_VIEW_NAV_MS 1000
+#define NAV_SETTLE_TIMER_MS 50
 
 static int g_should_exit = 0;
 static int g_menu_visible = 0;
@@ -46,7 +50,11 @@ static int g_menu_selected = 0;
 static int g_card_top = 0;
 static int g_card_focus = 0;
 static int g_cover_motion = 0;
+static int g_nav_timer_slowed = 0;
 static uint64_t g_last_cover_refresh_ms = 0;
+static uint64_t g_last_wheel_ms = 0;
+static lv_timer_t *g_cover_anim_timer = NULL;
+static lv_timer_t *g_media_view_timer = NULL;
 static lv_obj_t *g_wifi_img = NULL;
 static lv_obj_t *g_time_label = NULL;
 static lv_obj_t *g_power_img = NULL;
@@ -533,6 +541,27 @@ static void media_view_timer_cb(lv_timer_t *t)
   update_media_view();
 }
 
+static void note_navigation_activity(void)
+{
+  g_last_wheel_ms = ms_now();
+  if(g_nav_timer_slowed) return;
+
+  if(g_cover_anim_timer) lv_timer_pause(g_cover_anim_timer);
+  if(g_media_view_timer) lv_timer_set_period(g_media_view_timer, MEDIA_VIEW_NAV_MS);
+  g_nav_timer_slowed = 1;
+}
+
+static void nav_settle_timer_cb(lv_timer_t *t)
+{
+  (void)t;
+  if(!g_nav_timer_slowed) return;
+  if(ms_now() - g_last_wheel_ms < NAV_SETTLE_MS) return;
+
+  if(g_cover_anim_timer) lv_timer_resume(g_cover_anim_timer);
+  if(g_media_view_timer) lv_timer_set_period(g_media_view_timer, MEDIA_VIEW_IDLE_MS);
+  g_nav_timer_slowed = 0;
+}
+
 static void refresh_cards(void)
 {
   if(media_loaded_now() && g_card_top + g_card_focus != 3) {
@@ -730,6 +759,7 @@ void ui_init(lv_group_t *grp)
   g_menu_selected = 0;
   g_card_top = 0;
   g_card_focus = 0;
+  g_nav_timer_slowed = 0;
   g_media_view = NULL;
   g_media_title = NULL;
   g_media_pause_icon = NULL;
@@ -741,6 +771,9 @@ void ui_init(lv_group_t *grp)
   g_media_art_panel = NULL;
   g_media_art_img = NULL;
   g_media_art_version = 0;
+  g_last_wheel_ms = 0;
+  g_cover_anim_timer = NULL;
+  g_media_view_timer = NULL;
   for(int i = 0; i < CARD_VISIBLE_COUNT; ++i) {
     g_card_panels[i] = NULL;
     g_card_icons[i] = NULL;
@@ -792,8 +825,9 @@ void ui_init(lv_group_t *grp)
   build_menu(scr);
   status_update();
   lv_timer_create(status_timer_cb, 1000, NULL);
-  lv_timer_create(cover_anim_timer_cb, 20, NULL);
-  lv_timer_create(media_view_timer_cb, 250, NULL);
+  g_cover_anim_timer = lv_timer_create(cover_anim_timer_cb, 20, NULL);
+  g_media_view_timer = lv_timer_create(media_view_timer_cb, MEDIA_VIEW_IDLE_MS, NULL);
+  lv_timer_create(nav_settle_timer_cb, NAV_SETTLE_TIMER_MS, NULL);
 
   (void)grp;
 }
@@ -840,6 +874,7 @@ void ui_set_cover_refresh_callback(void (*refresh)(void))
 int ui_menu_wheel(int diff)
 {
   if(diff == 0) return 0;
+  note_navigation_activity();
 
   if(!g_menu_visible) {
     int old_top = g_card_top;
