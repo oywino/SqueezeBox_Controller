@@ -45,6 +45,7 @@ static unsigned int g_event_head = 0;
 static unsigned int g_event_tail = 0;
 static int g_pending_menu_wheel_delta = 0;
 static int64_t g_latency_wheel_first_ms = 0;
+static int64_t g_latency_wheel_last_ms = 0;
 static int g_latency_wheel_count = 0;
 static int g_latency_waiting_for_lvgl = 0;
 
@@ -84,6 +85,7 @@ static void latency_note_wheel_read(const struct hal_input_event *ev) {
     if (g_latency_wheel_first_ms == 0) {
         g_latency_wheel_first_ms = ev->ts_ms ? ev->ts_ms : mono_ms_now();
     }
+    g_latency_wheel_last_ms = ev->ts_ms ? ev->ts_ms : mono_ms_now();
     g_latency_wheel_count += diff > 0 ? diff : -diff;
     pthread_mutex_unlock(&g_latency_lock);
 }
@@ -328,15 +330,18 @@ void input_pump_events(void) {
 
 void input_note_lvgl_cycle_complete(uint64_t now_ms) {
     int64_t first_ms;
+    int64_t last_ms;
     int count;
     int waiting;
 
     pthread_mutex_lock(&g_latency_lock);
     first_ms = g_latency_wheel_first_ms;
+    last_ms = g_latency_wheel_last_ms;
     count = g_latency_wheel_count;
     waiting = g_latency_waiting_for_lvgl;
     if (waiting && first_ms != 0) {
         g_latency_wheel_first_ms = 0;
+        g_latency_wheel_last_ms = 0;
         g_latency_wheel_count = 0;
         g_latency_waiting_for_lvgl = 0;
     }
@@ -344,9 +349,10 @@ void input_note_lvgl_cycle_complete(uint64_t now_ms) {
 
     if (waiting && first_ms != 0) {
         fprintf(stderr,
-                "[wheel_latency] detents=%d latency_ms=%llu\n",
+                "[wheel_latency] detents=%d first_ms=%llu last_ms=%llu\n",
                 count,
-                (unsigned long long)(now_ms - (uint64_t)first_ms));
+                (unsigned long long)(now_ms - (uint64_t)first_ms),
+                (unsigned long long)(now_ms - (uint64_t)(last_ms ? last_ms : first_ms)));
     }
 }
 
