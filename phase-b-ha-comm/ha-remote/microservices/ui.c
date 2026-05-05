@@ -35,7 +35,6 @@
 #define CARD_H 70
 #define CARD_Y0 8
 #define CARD_STEP 78
-#define CARD_SCROLL_MIN_MS 400
 #define COVER_ANIM_FIRST_MS 500
 #define COVER_ANIM_GAP_MS 250
 #define COVER_ANIM_CYCLE_MS (COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS + COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS)
@@ -48,7 +47,6 @@ static int g_card_top = 0;
 static int g_card_focus = 0;
 static int g_cover_motion = 0;
 static uint64_t g_last_cover_refresh_ms = 0;
-static uint64_t g_last_card_scroll_ms = 0;
 static lv_obj_t *g_wifi_img = NULL;
 static lv_obj_t *g_time_label = NULL;
 static lv_obj_t *g_power_img = NULL;
@@ -732,7 +730,6 @@ void ui_init(lv_group_t *grp)
   g_menu_selected = 0;
   g_card_top = 0;
   g_card_focus = 0;
-  g_last_card_scroll_ms = 0;
   g_media_view = NULL;
   g_media_title = NULL;
   g_media_pause_icon = NULL;
@@ -850,11 +847,6 @@ int ui_menu_wheel(int diff)
     int old_focus = g_card_focus;
     int selected = g_card_top + g_card_focus;
     int media_loaded = media_loaded_now();
-    uint64_t now = ms_now();
-
-    if(g_last_card_scroll_ms != 0 && now - g_last_card_scroll_ms < CARD_SCROLL_MIN_MS) {
-      return 1;
-    }
 
     if(diff > 0 && selected < CARD_COUNT - 1) {
       if(g_card_focus < CARD_VISIBLE_COUNT - 1) {
@@ -874,7 +866,6 @@ int ui_menu_wheel(int diff)
     }
 
     if(g_card_top != old_top || g_card_focus != old_focus) {
-      g_last_card_scroll_ms = now;
       refresh_cards();
       audio_feedback_play(AUDIO_FEEDBACK_MOVE);
     }

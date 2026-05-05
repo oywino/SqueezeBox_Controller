@@ -251,16 +251,16 @@ void input_pump_events(void) {
             if (ev.code == REL_DIAL)  diff = ev.value;
 #endif
             if (diff != 0 && g_wheel_cb) {
-                g_pending_menu_wheel = diff > 0 ? 1 : -1;
+                g_pending_menu_wheel += diff;
                 continue;
             }
         }
         dispatch_hal_event(&ev);
     }
 
-    if (g_pending_menu_wheel != 0) {
-        int step = g_pending_menu_wheel;
-        g_pending_menu_wheel = 0;
+    while (g_pending_menu_wheel != 0) {
+        int step = g_pending_menu_wheel > 0 ? 1 : -1;
+        g_pending_menu_wheel -= step;
         struct hal_input_event wheel_ev;
         wheel_ev.source = HAL_INPUT_SRC_WHEEL;
         wheel_ev.type = EV_REL;
