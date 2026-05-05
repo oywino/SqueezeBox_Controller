@@ -546,6 +546,27 @@ static void refresh_cards(void)
   update_media_view();
 }
 
+static void refresh_cards_for_navigation(void)
+{
+  for(int i = 0; i < CARD_VISIBLE_COUNT; ++i) {
+    lv_obj_clear_flag(g_card_panels[i], LV_OBJ_FLAG_HIDDEN);
+    set_card_slot(i);
+  }
+}
+
+static void set_card_focus_style(int slot, int active)
+{
+  if(slot < 0 || slot >= CARD_VISIBLE_COUNT) return;
+  if(!g_card_panels[slot] || !g_card_states[slot]) return;
+
+  lv_obj_set_style_bg_color(g_card_panels[slot],
+                            lv_color_hex(active ? 0xF4F4F4 : 0xD8D8D8),
+                            0);
+  lv_obj_set_style_text_color(g_card_states[slot],
+                              lv_color_hex(active ? 0x006DCC : 0x404040),
+                              0);
+}
+
 static void build_card_slot(lv_obj_t *main_area, int slot)
 {
   lv_obj_t *card = make_panel(main_area, 8, CARD_Y0 + slot * CARD_STEP,
@@ -859,7 +880,12 @@ int ui_menu_wheel(int diff)
     }
 
     if(g_card_top != old_top || g_card_focus != old_focus) {
-      refresh_cards();
+      if(g_card_top == old_top) {
+        set_card_focus_style(old_focus, 0);
+        set_card_focus_style(g_card_focus, 1);
+      } else {
+        refresh_cards_for_navigation();
+      }
       audio_feedback_play(AUDIO_FEEDBACK_MOVE);
     }
     return 1;
