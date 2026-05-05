@@ -2,6 +2,16 @@
 
 ---
 
+## v0.8.25-phase-b-media-volume-keys — 2026-05-05
+
+- Added Media-focused volume key actions for `media_player.squeezebox_boom`.
+- `Volume Up` now enqueues `media_player.volume_up`; `Volume Down` enqueues `media_player.volume_down`.
+- Volume keys are ignored when any non-Media card is focused.
+- Reused the existing `ha_action_queue`; no visual changes.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user approved the behavior.
+
+---
+
 ## v0.8.24-phase-b-ha-action-queue — 2026-05-03
 
 - Added `ha_action_queue` microservice so HA REST service calls and targeted state refreshes run off the UI/input path.

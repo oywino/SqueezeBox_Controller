@@ -35,6 +35,8 @@
 #define MVP_SWITCH_SERVICE "switch.toggle"
 #define MVP_MEDIA_ENTITY_ID "media_player.squeezebox_boom"
 #define MVP_MEDIA_PLAY_PAUSE_SERVICE "media_player.media_play_pause"
+#define MVP_MEDIA_VOLUME_UP_SERVICE "media_player.volume_up"
+#define MVP_MEDIA_VOLUME_DOWN_SERVICE "media_player.volume_down"
 
 static uint64_t ms_now(void)
 {
@@ -252,6 +254,30 @@ static void play_pause_focused_media(void)
     (void)ha_action_enqueue_service(MVP_MEDIA_PLAY_PAUSE_SERVICE, MVP_MEDIA_ENTITY_ID);
 }
 
+static void call_media_volume_service(const char *service)
+{
+    const char *focused_entity = ui_focused_card_entity_id();
+
+    if (strcmp(focused_entity, MVP_MEDIA_ENTITY_ID) != 0) {
+        fprintf(stderr,
+                "[ha_action] media volume ignored: focused entity=%s\n",
+                focused_entity && *focused_entity ? focused_entity : "<none>");
+        return;
+    }
+
+    (void)ha_action_enqueue_service(service, MVP_MEDIA_ENTITY_ID);
+}
+
+static void volume_up_focused_media(void)
+{
+    call_media_volume_service(MVP_MEDIA_VOLUME_UP_SERVICE);
+}
+
+static void volume_down_focused_media(void)
+{
+    call_media_volume_service(MVP_MEDIA_VOLUME_DOWN_SERVICE);
+}
+
 static void pause_key_action(void)
 {
     const char *focused_entity = ui_focused_card_entity_id();
@@ -328,6 +354,8 @@ int main(void)
     input_set_key_callbacks(SB_KEY_REWIND, open_focused_cover, NULL);
     input_set_key_callbacks(SB_KEY_PAUSE, pause_key_action, NULL);
     input_set_key_callbacks(SB_KEY_FASTFORWARD, close_focused_cover, NULL);
+    input_set_key_callbacks(KEY_VOLUMEUP, volume_up_focused_media, NULL);
+    input_set_key_callbacks(KEY_VOLUMEDOWN, volume_down_focused_media, NULL);
     input_set_wheel_callback(ui_menu_wheel);
     input_set_activity_callback(input_activity);
 
