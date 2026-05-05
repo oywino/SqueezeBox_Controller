@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -17,6 +18,9 @@
 #include "ha_rest.h"
 #include "ui.h"
 #include "ws_io.h"
+
+#define HA_WS_UPDATE_QUEUE_LEN 16
+#define HA_WS_DRAIN_MAX 8
 
 /* HA/WebSocket state (encapsulated here) */
 static char g_ha_status[128] = "";
@@ -37,7 +41,35 @@ typedef struct {
   int subscribed;
 } ha_session_t;
 
+typedef struct {
+  char entity_id[64];
+  char state[HA_REST_MAX_STATE];
+  char media_title[96];
+  char media_artist[96];
+  char media_album[96];
+  char media_picture[256];
+  int is_media;
+  int have_media_title;
+  int have_media_artist;
+  int have_media_album;
+  int have_media_picture;
+  int media_position;
+  int have_media_position;
+  int media_duration;
+  int have_media_duration;
+  int position;
+  int have_position;
+} ha_state_update_t;
+
 static ha_session_t g_ha = { .fd = -1 };
+static pthread_t g_rx_thread;
+static pthread_mutex_t g_rx_lock = PTHREAD_MUTEX_INITIALIZER;
+static int g_rx_running = 0;
+static int g_rx_started = 0;
+static pthread_mutex_t g_update_lock = PTHREAD_MUTEX_INITIALIZER;
+static ha_state_update_t g_update_queue[HA_WS_UPDATE_QUEUE_LEN];
+static unsigned int g_update_head = 0;
+static unsigned int g_update_tail = 0;
 
 void ha_session_note_activity(void)
 {
@@ -68,8 +100,79 @@ static uint32_t rng_u32(void) {
 
 /* Forward declaration */
 static void set_status(const char *s);
+static void *ha_receiver_thread_main(void *arg);
+
+static int update_queue_empty(void)
+{
+  return g_update_head == g_update_tail;
+}
+
+static int update_queue_full(void)
+{
+  return ((g_update_tail + 1U) % HA_WS_UPDATE_QUEUE_LEN) == g_update_head;
+}
+
+static void update_queue_push(const ha_state_update_t *update)
+{
+  if(!update) return;
+
+  pthread_mutex_lock(&g_update_lock);
+  if(update_queue_full()) {
+    g_update_head = (g_update_head + 1U) % HA_WS_UPDATE_QUEUE_LEN;
+  }
+  g_update_queue[g_update_tail] = *update;
+  g_update_tail = (g_update_tail + 1U) % HA_WS_UPDATE_QUEUE_LEN;
+  pthread_mutex_unlock(&g_update_lock);
+}
+
+static int update_queue_pop(ha_state_update_t *update)
+{
+  int have = 0;
+
+  if(!update) return 0;
+
+  pthread_mutex_lock(&g_update_lock);
+  if(!update_queue_empty()) {
+    *update = g_update_queue[g_update_head];
+    g_update_head = (g_update_head + 1U) % HA_WS_UPDATE_QUEUE_LEN;
+    have = 1;
+  }
+  pthread_mutex_unlock(&g_update_lock);
+  return have;
+}
+
+static void update_queue_clear(void)
+{
+  pthread_mutex_lock(&g_update_lock);
+  g_update_head = 0;
+  g_update_tail = 0;
+  pthread_mutex_unlock(&g_update_lock);
+}
+
+static void ha_receiver_stop(void)
+{
+  int started;
+
+  pthread_mutex_lock(&g_rx_lock);
+  started = g_rx_started;
+  g_rx_running = 0;
+  if(started && g_ha.fd >= 0) {
+    shutdown(g_ha.fd, SHUT_RDWR);
+  }
+  pthread_mutex_unlock(&g_rx_lock);
+
+  if(started && !pthread_equal(pthread_self(), g_rx_thread)) {
+    pthread_join(g_rx_thread, NULL);
+  }
+
+  pthread_mutex_lock(&g_rx_lock);
+  g_rx_started = 0;
+  pthread_mutex_unlock(&g_rx_lock);
+}
 
 void ha_session_close(void) {
+  ha_receiver_stop();
+
   if(g_ha.fd >= 0) {
     close(g_ha.fd);
     set_status("HA: disconnected");
@@ -81,6 +184,7 @@ void ha_session_close(void) {
   g_ha.id_subscribe = 0;
   g_ha.have_states = 0;
   g_ha.subscribed = 0;
+  update_queue_clear();
   ha_refresh_ui();
 }
 
@@ -307,7 +411,7 @@ static int is_configured_entity(const char *entity_id)
   return 0;
 }
 
-static void handle_state_changed(const char *msg)
+static int parse_state_changed(const char *msg, ha_state_update_t *update)
 {
   char entity_id[64];
   char state[HA_REST_MAX_STATE];
@@ -320,53 +424,56 @@ static void handle_state_changed(const char *msg)
   int media_position;
   int media_duration;
 
-  if(!msg || !strstr(msg, "\"event_type\":\"state_changed\"")) return;
-  if(!json_extract_string_after(msg, "entity_id", entity_id, sizeof(entity_id))) return;
-  if(!is_configured_entity(entity_id)) return;
+  if(!msg || !update || !strstr(msg, "\"event_type\":\"state_changed\"")) return 0;
+  if(!json_extract_string_after(msg, "entity_id", entity_id, sizeof(entity_id))) return 0;
+  if(!is_configured_entity(entity_id)) return 0;
 
   new_state = strstr(msg, "\"new_state\"");
   if(!new_state) {
     if(strcmp(entity_id, "switch.ikea_power_plug") == 0) {
       fprintf(stderr, "[ha_ws] switch event ignored: new_state missing\n");
     }
-    return;
+    return 0;
   }
   if(!json_extract_string_after(new_state, "state", state, sizeof(state))) {
     if(strcmp(entity_id, "switch.ikea_power_plug") == 0) {
       fprintf(stderr, "[ha_ws] switch event ignored: state parse failed\n");
     }
-    return;
+    return 0;
   }
 
-  ha_rest_set_cached_state(entity_id, state);
+  memset(update, 0, sizeof(*update));
+  snprintf(update->entity_id, sizeof(update->entity_id), "%s", entity_id);
+  snprintf(update->state, sizeof(update->state), "%s", state);
+  update->is_media = strncmp(entity_id, "media_player.", 13) == 0;
+
   if(json_extract_string_after(new_state, "media_title", media_title, sizeof(media_title))) {
-    ha_rest_set_cached_media_title(entity_id, media_title);
-  } else if(strncmp(entity_id, "media_player.", 13) == 0) {
-    ha_rest_set_cached_media_title(entity_id, NULL);
+    snprintf(update->media_title, sizeof(update->media_title), "%s", media_title);
+    update->have_media_title = 1;
   }
   if(json_extract_string_after(new_state, "media_artist", media_artist, sizeof(media_artist))) {
-    ha_rest_set_cached_media_artist(entity_id, media_artist);
-  } else if(strncmp(entity_id, "media_player.", 13) == 0) {
-    ha_rest_set_cached_media_artist(entity_id, NULL);
+    snprintf(update->media_artist, sizeof(update->media_artist), "%s", media_artist);
+    update->have_media_artist = 1;
   }
   if(json_extract_string_after(new_state, "media_album_name", media_album, sizeof(media_album))) {
-    ha_rest_set_cached_media_album(entity_id, media_album);
-  } else if(strncmp(entity_id, "media_player.", 13) == 0) {
-    ha_rest_set_cached_media_album(entity_id, NULL);
+    snprintf(update->media_album, sizeof(update->media_album), "%s", media_album);
+    update->have_media_album = 1;
   }
   if(json_extract_string_after(new_state, "entity_picture", media_picture, sizeof(media_picture))) {
-    ha_rest_set_cached_media_picture(entity_id, media_picture);
-  } else if(strncmp(entity_id, "media_player.", 13) == 0) {
-    ha_rest_set_cached_media_picture(entity_id, NULL);
+    snprintf(update->media_picture, sizeof(update->media_picture), "%s", media_picture);
+    update->have_media_picture = 1;
   }
   if(json_extract_int_after(new_state, "media_position", &media_position)) {
-    ha_rest_set_cached_media_position(entity_id, media_position);
+    update->media_position = media_position;
+    update->have_media_position = 1;
   }
   if(json_extract_int_after(new_state, "media_duration", &media_duration)) {
-    ha_rest_set_cached_media_duration(entity_id, media_duration);
+    update->media_duration = media_duration;
+    update->have_media_duration = 1;
   }
   if(json_extract_int_after(new_state, "current_position", &position)) {
-    ha_rest_set_cached_position(entity_id, position);
+    update->position = position;
+    update->have_position = 1;
     fprintf(stderr, "[ha_ws] state_changed %s state=%s position=%d\n",
             entity_id,
             state,
@@ -374,7 +481,7 @@ static void handle_state_changed(const char *msg)
   } else {
     fprintf(stderr, "[ha_ws] state_changed %s state=%s\n", entity_id, state);
   }
-  ui_refresh_cards();
+  return 1;
 }
 
 int ha_session_start(const char *host, const char *token) {
@@ -444,8 +551,85 @@ void ha_poll_timer(void) {
   for(;;) {
     int rcv = ws_recv_text_sb(&g_ha.sb, g_ha.fd, msg, sizeof(msg), 0);
     if(rcv != 0 || msg[0] == 0) break;
-    handle_state_changed(msg);
+    {
+      ha_state_update_t update;
+      if(parse_state_changed(msg, &update)) {
+        update_queue_push(&update);
+      }
+    }
   }
+}
+
+static void apply_state_update(const ha_state_update_t *update)
+{
+  if(!update || !update->entity_id[0]) return;
+
+  ha_rest_set_cached_state(update->entity_id, update->state);
+  if(update->is_media) {
+    ha_rest_set_cached_media_title(update->entity_id,
+                                   update->have_media_title ? update->media_title : NULL);
+    ha_rest_set_cached_media_artist(update->entity_id,
+                                    update->have_media_artist ? update->media_artist : NULL);
+    ha_rest_set_cached_media_album(update->entity_id,
+                                   update->have_media_album ? update->media_album : NULL);
+    ha_rest_set_cached_media_picture(update->entity_id,
+                                     update->have_media_picture ? update->media_picture : NULL);
+  }
+  if(update->have_media_position) {
+    ha_rest_set_cached_media_position(update->entity_id, update->media_position);
+  }
+  if(update->have_media_duration) {
+    ha_rest_set_cached_media_duration(update->entity_id, update->media_duration);
+  }
+  if(update->have_position) {
+    ha_rest_set_cached_position(update->entity_id, update->position);
+  }
+}
+
+void ha_ws_drain_state_updates(void)
+{
+  int refreshed = 0;
+
+  for(int i = 0; i < HA_WS_DRAIN_MAX; i++) {
+    ha_state_update_t update;
+    if(!update_queue_pop(&update)) break;
+    apply_state_update(&update);
+    refreshed = 1;
+  }
+
+  if(refreshed) {
+    ui_refresh_cards();
+  }
+}
+
+static void *ha_receiver_thread_main(void *arg)
+{
+  (void)arg;
+
+  for(;;) {
+    char msg[8192];
+    ha_state_update_t update;
+    int running;
+    int rcv;
+
+    pthread_mutex_lock(&g_rx_lock);
+    running = g_rx_running;
+    pthread_mutex_unlock(&g_rx_lock);
+    if(!running) break;
+
+    rcv = ws_recv_text_sb(&g_ha.sb, g_ha.fd, msg, sizeof(msg), -1);
+    if(rcv != 0) break;
+    if(msg[0] == 0) continue;
+
+    if(parse_state_changed(msg, &update)) {
+      update_queue_push(&update);
+    }
+  }
+
+  pthread_mutex_lock(&g_rx_lock);
+  g_rx_running = 0;
+  pthread_mutex_unlock(&g_rx_lock);
+  return NULL;
 }
 
 int ha_session_subscribe_state_changes(const char *base_url, const char *token)
@@ -501,6 +685,20 @@ int ha_session_subscribe_state_changes(const char *base_url, const char *token)
       if(strstr(msg, "\"success\":true")) {
         g_ha.subscribed = 1;
         set_status("HA: state subscription ok");
+        pthread_mutex_lock(&g_rx_lock);
+        g_rx_running = 1;
+        pthread_mutex_unlock(&g_rx_lock);
+        if(pthread_create(&g_rx_thread, NULL, ha_receiver_thread_main, NULL) != 0) {
+          pthread_mutex_lock(&g_rx_lock);
+          g_rx_running = 0;
+          pthread_mutex_unlock(&g_rx_lock);
+          set_status("HA: receiver start failed");
+          ha_session_close();
+          return -1;
+        }
+        pthread_mutex_lock(&g_rx_lock);
+        g_rx_started = 1;
+        pthread_mutex_unlock(&g_rx_lock);
         return 0;
       }
       set_status("HA: subscribe failed");

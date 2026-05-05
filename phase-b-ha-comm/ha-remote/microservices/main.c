@@ -371,7 +371,6 @@ int main(void)
         start_ha_state_subscription();
     }
 
-    lv_timer_create(ha_poll_timer_cb, 100, NULL);
     lv_timer_create(ha_action_poll_timer_cb, 100, NULL);
 
     uint64_t last = ms_now();
@@ -380,6 +379,7 @@ int main(void)
         uint32_t diff = (uint32_t)(now - last);
         last = now;
         power_manager_tick(now);
+        ha_ws_drain_state_updates();
         input_pump_events();
         if (power_manager_is_sleeping()) {
             usleep(100000);

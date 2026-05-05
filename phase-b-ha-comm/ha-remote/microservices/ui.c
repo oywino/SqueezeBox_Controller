@@ -792,7 +792,6 @@ void ui_init(lv_group_t *grp)
   build_menu(scr);
   status_update();
   lv_timer_create(status_timer_cb, 1000, NULL);
-  lv_timer_create(ha_poll_timer_cb, 100, NULL);
   lv_timer_create(cover_anim_timer_cb, 20, NULL);
   lv_timer_create(media_view_timer_cb, 250, NULL);
 
@@ -929,12 +928,6 @@ void ui_show_exit_screen(void)
     lv_timer_handler();
     usleep(5000);
   }
-}
-
-void ha_poll_timer_cb(lv_timer_t *t)
-{
-  (void)t;
-  ha_poll_timer();
 }
 
 void ui_status_set(const char *s, int connected, int have_states)

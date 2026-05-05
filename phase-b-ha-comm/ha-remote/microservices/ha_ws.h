@@ -12,8 +12,8 @@ int  ha_session_start(const char *host, const char *token);
 /* Start persistent HA state_changed subscription for configured entities. */
 int ha_session_subscribe_state_changes(const char *base_url, const char *token);
 
-/* Backend poll tick: invoked by UI wrapper timer. */
-void ha_poll_timer(void);
+/* Drain parsed HA state updates on the UI thread. */
+void ha_ws_drain_state_updates(void);
 
 /* Close the current HA session (if any). */
 void ha_session_close(void);

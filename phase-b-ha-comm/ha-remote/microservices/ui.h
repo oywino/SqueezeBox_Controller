@@ -29,7 +29,4 @@ void ui_status_set(const char *s, int connected, int have_states);
 /* Show exit screen. */
 void ui_show_exit_screen(void);
 
-/* LVGL timer wrapper for backend poll. */
-void ha_poll_timer_cb(lv_timer_t *t);
-
 #endif /* HA_REMOTE_UI_H */
