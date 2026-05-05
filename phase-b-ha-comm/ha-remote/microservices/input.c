@@ -17,7 +17,6 @@ static volatile int g_enc_diff    = 0;
 static volatile int g_btn_pressed = 0;
 static int (*g_activity_cb)(void) = 0;
 static int (*g_wheel_cb)(int diff) = 0;
-static int g_pending_menu_wheel = 0;
 
 #define INPUT_LONG_PRESS_MS 1000
 #define INPUT_MAX_KEY_BINDINGS 12
@@ -37,12 +36,14 @@ static struct key_binding g_key_bindings[INPUT_MAX_KEY_BINDINGS];
 
 static pthread_t g_input_thread;
 static pthread_mutex_t g_event_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t g_wheel_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t g_latency_lock = PTHREAD_MUTEX_INITIALIZER;
 static volatile int g_input_thread_running = 0;
 static int g_input_thread_started = 0;
 static struct hal_input_event g_event_queue[INPUT_EVENT_QUEUE_LEN];
 static unsigned int g_event_head = 0;
 static unsigned int g_event_tail = 0;
+static int g_pending_menu_wheel_delta = 0;
 static int64_t g_latency_wheel_first_ms = 0;
 static int g_latency_wheel_count = 0;
 static int g_latency_waiting_for_lvgl = 0;
@@ -105,6 +106,22 @@ static void event_queue_push(const struct hal_input_event *ev) {
     pthread_mutex_unlock(&g_event_lock);
 }
 
+static void pending_wheel_add(int diff) {
+    pthread_mutex_lock(&g_wheel_lock);
+    g_pending_menu_wheel_delta += diff;
+    pthread_mutex_unlock(&g_wheel_lock);
+}
+
+static int pending_wheel_take(void) {
+    int diff;
+
+    pthread_mutex_lock(&g_wheel_lock);
+    diff = g_pending_menu_wheel_delta;
+    g_pending_menu_wheel_delta = 0;
+    pthread_mutex_unlock(&g_wheel_lock);
+    return diff;
+}
+
 static int event_queue_pop(struct hal_input_event *ev) {
     int have = 0;
     pthread_mutex_lock(&g_event_lock);
@@ -124,8 +141,13 @@ static void *input_thread_main(void *arg) {
         struct hal_input_event ev;
         int rc = hal_poll_input(&ev, 100);
         if (rc > 0) {
-            latency_note_wheel_read(&ev);
-            event_queue_push(&ev);
+            int wheel_diff = wheel_delta_from_event(&ev);
+            if (wheel_diff != 0 && g_wheel_cb) {
+                latency_note_wheel_read(&ev);
+                pending_wheel_add(wheel_diff);
+            } else {
+                event_queue_push(&ev);
+            }
         }
     }
 
@@ -281,20 +303,13 @@ static inline void dispatch_hal_event(const struct hal_input_event *ev) {
 
 void input_pump_events(void) {
     struct hal_input_event ev;
+    int wheel_delta = pending_wheel_take();
+
     while (event_queue_pop(&ev)) {
-        if (ev.type == EV_REL) {
-            int diff = wheel_delta_from_event(&ev);
-            if (diff != 0 && g_wheel_cb) {
-                g_pending_menu_wheel += diff;
-                continue;
-            }
-        }
         dispatch_hal_event(&ev);
     }
 
-    while (g_pending_menu_wheel != 0) {
-        int step = g_pending_menu_wheel > 0 ? 1 : -1;
-        g_pending_menu_wheel -= step;
+    if (wheel_delta != 0) {
         struct hal_input_event wheel_ev;
         wheel_ev.source = HAL_INPUT_SRC_WHEEL;
         wheel_ev.type = EV_REL;
@@ -303,7 +318,7 @@ void input_pump_events(void) {
 #else
         wheel_ev.code = 0;
 #endif
-        wheel_ev.value = step;
+        wheel_ev.value = wheel_delta;
         wheel_ev.ts_ms = mono_ms_now();
         dispatch_hal_event(&wheel_ev);
         latency_note_wheel_flushed();

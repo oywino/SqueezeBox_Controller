@@ -845,23 +845,17 @@ int ui_menu_wheel(int diff)
     int old_top = g_card_top;
     int old_focus = g_card_focus;
     int selected = g_card_top + g_card_focus;
-    int media_loaded = media_loaded_now();
+    int target = selected + diff;
 
-    if(diff > 0 && selected < CARD_COUNT - 1) {
-      if(g_card_focus < CARD_VISIBLE_COUNT - 1) {
-        g_card_focus++;
-      } else {
-        g_card_top++;
-      }
-    } else if(diff < 0 && selected > 0) {
-      if(media_loaded && selected == 3) {
-        g_card_top = 0;
-        g_card_focus = 2;
-      } else if(g_card_focus > 0) {
-        g_card_focus--;
-      } else {
-        g_card_top--;
-      }
+    if(target < 0) target = 0;
+    if(target >= CARD_COUNT) target = CARD_COUNT - 1;
+
+    if(target < CARD_VISIBLE_COUNT) {
+      g_card_top = 0;
+      g_card_focus = target;
+    } else {
+      g_card_top = target - (CARD_VISIBLE_COUNT - 1);
+      g_card_focus = CARD_VISIBLE_COUNT - 1;
     }
 
     if(g_card_top != old_top || g_card_focus != old_focus) {
@@ -872,7 +866,7 @@ int ui_menu_wheel(int diff)
   }
 
   int old_selected = g_menu_selected;
-  set_menu_selected(g_menu_selected + (diff > 0 ? 1 : -1));
+  set_menu_selected(g_menu_selected + diff);
   if(g_menu_selected != old_selected) audio_feedback_play(AUDIO_FEEDBACK_MOVE);
   return 1;
 }
