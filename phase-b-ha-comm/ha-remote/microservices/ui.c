@@ -326,6 +326,11 @@ static void set_card_slot(int slot)
   is_switch = strcmp(g_cards[card_idx].entity_id, "switch.ikea_power_plug") == 0;
   is_media = strcmp(g_cards[card_idx].entity_id, "media_player.squeezebox_boom") == 0;
 
+  if(is_media && active && media_loaded_now()) {
+    lv_obj_add_flag(g_card_panels[slot], LV_OBJ_FLAG_HIDDEN);
+    return;
+  }
+
   lv_obj_set_style_bg_color(g_card_panels[slot], lv_color_hex(fill), 0);
   lv_obj_set_style_text_color(g_card_titles[slot], lv_color_hex(0x101010), 0);
   lv_obj_clear_flag(g_card_panels[slot], LV_OBJ_FLAG_HIDDEN);
@@ -886,6 +891,7 @@ int ui_menu_wheel(int diff)
       } else {
         refresh_cards_for_navigation();
       }
+      if(target == 3 || selected == 3) update_media_view();
       audio_feedback_play(AUDIO_FEEDBACK_MOVE);
     }
     return 1;

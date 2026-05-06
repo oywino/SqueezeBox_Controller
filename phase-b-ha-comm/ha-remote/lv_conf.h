@@ -11,5 +11,6 @@
 #define LV_FS_STDIO_LETTER 'S'
 #define LV_FS_STDIO_PATH ""
 #define LV_USE_SJPG 1
+#define LV_USE_PNG 1
 
 #endif /*LV_CONF_H*/

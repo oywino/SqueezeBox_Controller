@@ -2,6 +2,16 @@
 
 ---
 
+## v0.9.1 — 2026-05-06
+
+- Fixed loaded Media navigation so the minimal `Squeezebox Boom / Nothing` card is suppressed when the full-screen now-playing view should be shown.
+- Fixed radio-stream artwork handling: album art decoding now supports JPEG, progressive JPEG, and PNG payloads fetched from Home Assistant.
+- Added a built-in fallback radio image for cases where real album art is missing or cannot be decoded.
+- Album art is scaled to screen width and center-cropped to the 240x204 now-playing artwork region before being stored in the runtime bitmap.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified the behavior as correct.
+
+---
+
 ## v0.9.0 — 2026-05-06
 
 - Released the UX responsiveness milestone from `codex/ux-responsiveness-v0.8.25`.

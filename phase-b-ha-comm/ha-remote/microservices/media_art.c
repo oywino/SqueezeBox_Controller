@@ -10,7 +10,15 @@
 
 #include "ha_rest.h"
 #include "ws_io.h"
+#include "src/extra/libs/png/lodepng.h"
 #include "src/extra/libs/sjpg/tjpgd.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_JPEG
+#define STBI_NO_HDR
+#define STBI_NO_LINEAR
+#define STBI_NO_FAILURE_STRINGS
+#include "third_party/stb_image.h"
 
 #define MEDIA_ART_TMP_PATH "/tmp/ha_album_art.tmp"
 #define MEDIA_ART_PATH "/tmp/ha_album_art.jpg"
@@ -21,6 +29,8 @@
 #define MEDIA_ART_BUF_SIZE 2048
 #define MEDIA_ART_HEADER_SIZE 4096
 #define MEDIA_ART_JPEG_WORKBUF_SIZE 4096
+#define MEDIA_ART_FALLBACK_PATH "fallback"
+#define MEDIA_ART_DECODED_PATH "decoded"
 
 typedef struct {
     char host[96];
@@ -45,6 +55,8 @@ static lv_img_dsc_t g_image = {
     .data = (const uint8_t *)g_pixels
 };
 static unsigned long g_version = 0;
+static int g_fallback_ready = 0;
+static uint16_t g_fallback_pixels[MEDIA_ART_W * MEDIA_ART_H];
 
 typedef struct {
     FILE *fp;
@@ -52,6 +64,110 @@ typedef struct {
     int width;
     int height;
 } jpeg_decode_t;
+
+static void scale_crop_rgb_to_rgb565(const uint8_t *rgb, int src_w, int src_h, uint16_t *out)
+{
+    int crop_x = 0;
+    int crop_y = 0;
+    int crop_w = src_w;
+    int crop_h = (src_w * MEDIA_ART_H) / MEDIA_ART_W;
+
+    if(crop_h <= 0) crop_h = src_h;
+    if(crop_h <= src_h) {
+        crop_y = (src_h - crop_h) / 2;
+    } else {
+        crop_h = src_h;
+        crop_w = (src_h * MEDIA_ART_W) / MEDIA_ART_H;
+        if(crop_w <= 0 || crop_w > src_w) crop_w = src_w;
+        crop_x = (src_w - crop_w) / 2;
+    }
+
+    for(int y = 0; y < MEDIA_ART_H; y++) {
+        int sy = crop_y + (y * crop_h) / MEDIA_ART_H;
+        if(sy < 0) sy = 0;
+        if(sy >= src_h) sy = src_h - 1;
+        for(int x = 0; x < MEDIA_ART_W; x++) {
+            int sx = crop_x + (x * crop_w) / MEDIA_ART_W;
+            const uint8_t *p;
+            uint16_t c;
+            if(sx < 0) sx = 0;
+            if(sx >= src_w) sx = src_w - 1;
+            p = rgb + ((size_t)sy * (size_t)src_w + (size_t)sx) * 3U;
+            c = (uint16_t)(((p[0] & 0xF8) << 8) | ((p[1] & 0xFC) << 3) | (p[2] >> 3));
+            out[(size_t)y * MEDIA_ART_W + (size_t)x] = c;
+        }
+    }
+}
+
+static int file_signature(const char *path, uint8_t *sig, size_t sig_size)
+{
+    FILE *fp;
+    size_t got;
+
+    if(!path || !sig || sig_size == 0) return 0;
+    fp = fopen(path, "rb");
+    if(!fp) return 0;
+    got = fread(sig, 1, sig_size, fp);
+    fclose(fp);
+    return got == sig_size;
+}
+
+static int file_is_png(const char *path)
+{
+    uint8_t sig[8];
+    static const uint8_t png_sig[8] = { 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a };
+    return file_signature(path, sig, sizeof(sig)) && memcmp(sig, png_sig, sizeof(sig)) == 0;
+}
+
+static int file_is_jpeg(const char *path)
+{
+    uint8_t sig[3];
+    return file_signature(path, sig, sizeof(sig)) && sig[0] == 0xff && sig[1] == 0xd8 && sig[2] == 0xff;
+}
+
+static int read_whole_file(const char *path, uint8_t **out, size_t *out_size)
+{
+    FILE *fp;
+    long size;
+    uint8_t *buf;
+    size_t got;
+
+    if(!path || !out || !out_size) return 0;
+    *out = NULL;
+    *out_size = 0;
+
+    fp = fopen(path, "rb");
+    if(!fp) return 0;
+    if(fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        return 0;
+    }
+    size = ftell(fp);
+    if(size <= 0) {
+        fclose(fp);
+        return 0;
+    }
+    if(fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        return 0;
+    }
+
+    buf = (uint8_t *)malloc((size_t)size);
+    if(!buf) {
+        fclose(fp);
+        return 0;
+    }
+    got = fread(buf, 1, (size_t)size, fp);
+    fclose(fp);
+    if(got != (size_t)size) {
+        free(buf);
+        return 0;
+    }
+
+    *out = buf;
+    *out_size = got;
+    return 1;
+}
 
 static int parse_base_url(const char *base_url, media_art_url_t *out)
 {
@@ -89,6 +205,78 @@ static int parse_base_url(const char *base_url, media_art_url_t *out)
         snprintf(out->port, sizeof(out->port), "%s", "8123");
     }
     return 1;
+}
+
+static void fallback_pixel(uint16_t *out, int x, int y, uint16_t color)
+{
+    if(!out || x < 0 || y < 0 || x >= MEDIA_ART_W || y >= MEDIA_ART_H) return;
+    out[(size_t)y * MEDIA_ART_W + (size_t)x] = color;
+}
+
+static void fallback_disc(uint16_t *out, int cx, int cy, int r, uint16_t color)
+{
+    int r2 = r * r;
+    for(int y = cy - r; y <= cy + r; y++) {
+        for(int x = cx - r; x <= cx + r; x++) {
+            int dx = x - cx;
+            int dy = y - cy;
+            if(dx * dx + dy * dy <= r2) fallback_pixel(out, x, y, color);
+        }
+    }
+}
+
+static void fallback_line(uint16_t *out, int x0, int y0, int x1, int y1, int w, uint16_t color)
+{
+    int dx = x1 - x0;
+    int dy = y1 - y0;
+    int steps = abs(dx) > abs(dy) ? abs(dx) : abs(dy);
+    if(steps <= 0) {
+        fallback_disc(out, x0, y0, w / 2, color);
+        return;
+    }
+    for(int i = 0; i <= steps; i++) {
+        int x = x0 + (dx * i) / steps;
+        int y = y0 + (dy * i) / steps;
+        fallback_disc(out, x, y, w / 2, color);
+    }
+}
+
+static void fallback_arc(uint16_t *out, int cx, int cy, int r, int thick, int gap, uint16_t color)
+{
+    int inner = r - thick;
+    int outer = r + thick;
+    int inner2 = inner * inner;
+    int outer2 = outer * outer;
+
+    for(int y = cy - outer; y <= cy + outer; y++) {
+        for(int x = cx - outer; x <= cx + outer; x++) {
+            int dx = x - cx;
+            int dy = y - cy;
+            int d2 = dx * dx + dy * dy;
+            if(d2 < inner2 || d2 > outer2) continue;
+            if(dy > 0 && abs(dx) * 100 < dy * gap) continue;
+            fallback_pixel(out, x, y, color);
+        }
+    }
+}
+
+static void render_fallback_art(uint16_t *out)
+{
+    uint16_t grey = 0x528A;
+
+    if(!out) return;
+    memset(out, 0, MEDIA_ART_W * MEDIA_ART_H * sizeof(uint16_t));
+
+    fallback_arc(out, 112, 79, 68, 2, 34, grey);
+    fallback_arc(out, 112, 79, 49, 2, 45, grey);
+    fallback_arc(out, 112, 79, 30, 2, 60, grey);
+    fallback_disc(out, 112, 63, 9, grey);
+
+    fallback_line(out, 112, 88, 79, 184, 10, grey);
+    fallback_line(out, 112, 88, 146, 184, 10, grey);
+    fallback_line(out, 112, 125, 112, 203, 9, grey);
+    fallback_line(out, 97, 143, 128, 154, 8, grey);
+    fallback_line(out, 90, 166, 137, 181, 8, grey);
 }
 
 static int send_all(int fd, const char *buf, size_t len)
@@ -274,77 +462,98 @@ static int jpeg_output(JDEC *jd, void *bitmap, JRECT *rect)
 
 static int decode_jpeg_to_rgb565(const char *path, uint16_t *out)
 {
-    FILE *fp;
-    uint8_t *work;
+    uint8_t *file_data = NULL;
+    size_t file_size = 0;
     uint8_t *rgb = NULL;
-    jpeg_decode_t ctx;
-    JDEC jd;
-    JRESULT rc;
+    int width = 0;
+    int height = 0;
+    int channels = 0;
 
     if(!path || !out) return 0;
-    fp = fopen(path, "rb");
-    if(!fp) return 0;
 
-    work = (uint8_t *)malloc(MEDIA_ART_JPEG_WORKBUF_SIZE);
-    if(!work) {
-        fclose(fp);
+    if(!read_whole_file(path, &file_data, &file_size)) {
+        fprintf(stderr, "[media_art] jpeg read failed\n");
         return 0;
     }
 
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.fp = fp;
-    rc = jd_prepare(&jd, jpeg_input, work, MEDIA_ART_JPEG_WORKBUF_SIZE, &ctx);
-    if(rc != JDR_OK || jd.width <= 0 || jd.height <= 0) {
-        fprintf(stderr, "[media_art] jpeg prepare failed rc=%d\n", (int)rc);
-        free(work);
-        fclose(fp);
-        return 0;
-    }
-
-    ctx.width = jd.width;
-    ctx.height = jd.height;
-    rgb = (uint8_t *)malloc((size_t)ctx.width * (size_t)ctx.height * 3U);
+    rgb = stbi_load_from_memory(file_data, (int)file_size, &width, &height, &channels, 3);
+    free(file_data);
     if(!rgb) {
-        free(work);
-        fclose(fp);
-        return 0;
-    }
-    memset(rgb, 0, (size_t)ctx.width * (size_t)ctx.height * 3U);
-    ctx.rgb = rgb;
-
-    fseek(fp, 0, SEEK_SET);
-    rc = jd_prepare(&jd, jpeg_input, work, MEDIA_ART_JPEG_WORKBUF_SIZE, &ctx);
-    if(rc == JDR_OK) rc = jd_decomp(&jd, jpeg_output, 0);
-    if(rc != JDR_OK) {
-        fprintf(stderr, "[media_art] jpeg decode failed rc=%d\n", (int)rc);
-        free(rgb);
-        free(work);
-        fclose(fp);
+        fprintf(stderr, "[media_art] jpeg decode failed\n");
         return 0;
     }
 
-    for(int y = 0; y < MEDIA_ART_H; y++) {
-        int sy = (y * ctx.width) / MEDIA_ART_W;
-        if(sy < 0) sy = 0;
-        if(sy >= ctx.height) sy = ctx.height - 1;
-        for(int x = 0; x < MEDIA_ART_W; x++) {
-            int sx = (x * ctx.width) / MEDIA_ART_W;
-            uint8_t *p;
-            uint16_t c;
-            if(sx < 0) sx = 0;
-            if(sx >= ctx.width) sx = ctx.width - 1;
-            p = rgb + ((size_t)sy * (size_t)ctx.width + (size_t)sx) * 3U;
-            c = (uint16_t)(((p[0] & 0xF8) << 8) | ((p[1] & 0xFC) << 3) | (p[2] >> 3));
-            out[(size_t)y * MEDIA_ART_W + (size_t)x] = c;
+    if(width <= 0 || height <= 0) {
+        stbi_image_free(rgb);
+        return 0;
+    }
+
+    scale_crop_rgb_to_rgb565(rgb, width, height, out);
+
+    fprintf(stderr, "[media_art] decoded album art %dx%d -> %dx%d\n",
+            width, height, MEDIA_ART_W, MEDIA_ART_H);
+    stbi_image_free(rgb);
+    return 1;
+}
+
+static int decode_png_to_rgb565(const char *path, uint16_t *out)
+{
+    uint8_t *file_data = NULL;
+    size_t file_size = 0;
+    unsigned char *rgba = NULL;
+    uint8_t *rgb = NULL;
+    unsigned width = 0;
+    unsigned height = 0;
+    unsigned error;
+
+    if(!path || !out) return 0;
+
+    if(!read_whole_file(path, &file_data, &file_size)) {
+        fprintf(stderr, "[media_art] png read failed\n");
+        return 0;
+    }
+
+    error = lodepng_decode32(&rgba, &width, &height, file_data, file_size);
+    free(file_data);
+    if(error || !rgba || width == 0 || height == 0) {
+        fprintf(stderr, "[media_art] png decode failed rc=%u\n", error);
+        free(rgba);
+        return 0;
+    }
+
+    rgb = (uint8_t *)malloc((size_t)width * (size_t)height * 3U);
+    if(!rgb) {
+        free(rgba);
+        return 0;
+    }
+
+    for(unsigned y = 0; y < height; y++) {
+        for(unsigned x = 0; x < width; x++) {
+            size_t src = ((size_t)y * (size_t)width + (size_t)x) * 4U;
+            size_t dst = ((size_t)y * (size_t)width + (size_t)x) * 3U;
+            unsigned a = rgba[src + 3];
+            rgb[dst + 0] = (uint8_t)((rgba[src + 0] * a) / 255U);
+            rgb[dst + 1] = (uint8_t)((rgba[src + 1] * a) / 255U);
+            rgb[dst + 2] = (uint8_t)((rgba[src + 2] * a) / 255U);
         }
     }
 
-    fprintf(stderr, "[media_art] decoded album art %dx%d -> %dx%d\n",
-            ctx.width, ctx.height, MEDIA_ART_W, MEDIA_ART_H);
+    scale_crop_rgb_to_rgb565(rgb, (int)width, (int)height, out);
+    fprintf(stderr, "[media_art] decoded png album art %ux%u -> %dx%d\n",
+            width, height, MEDIA_ART_W, MEDIA_ART_H);
+
     free(rgb);
-    free(work);
-    fclose(fp);
+    free(rgba);
     return 1;
+}
+
+static int decode_image_to_rgb565(const char *path, uint16_t *out)
+{
+    if(file_is_jpeg(path)) return decode_jpeg_to_rgb565(path, out);
+    if(file_is_png(path)) return decode_png_to_rgb565(path, out);
+
+    fprintf(stderr, "[media_art] unsupported album art format\n");
+    return 0;
 }
 
 static void clear_art_path(void)
@@ -357,10 +566,25 @@ static void clear_art_path(void)
     pthread_mutex_unlock(&g_lock);
 }
 
+static void publish_fallback_art(void)
+{
+    pthread_mutex_lock(&g_lock);
+    if(!g_fallback_ready) {
+        render_fallback_art(g_fallback_pixels);
+        g_fallback_ready = 1;
+    }
+    if(strcmp(g_path, MEDIA_ART_FALLBACK_PATH) != 0) {
+        memcpy(g_pixels, g_fallback_pixels, sizeof(g_pixels));
+        snprintf(g_path, sizeof(g_path), "%s", MEDIA_ART_FALLBACK_PATH);
+        g_version++;
+    }
+    pthread_mutex_unlock(&g_lock);
+}
+
 static void publish_art_path(void)
 {
     pthread_mutex_lock(&g_lock);
-    snprintf(g_path, sizeof(g_path), "%s", "decoded");
+    snprintf(g_path, sizeof(g_path), "%s", MEDIA_ART_DECODED_PATH);
     g_version++;
     pthread_mutex_unlock(&g_lock);
 }
@@ -403,13 +627,16 @@ static void *worker_main(void *arg)
         title = ha_rest_get_cached_media_title(entity_id);
         state = ha_rest_get_cached_state(entity_id);
         picture = ha_rest_get_cached_media_picture(entity_id);
-        if(!media_state_loaded(state) || !title || !*title || !picture || !*picture) {
+        if(!media_state_loaded(state) || !title || !*title) {
             last_picture[0] = '\0';
             clear_art_path();
+        } else if(!picture || !*picture) {
+            last_picture[0] = '\0';
+            publish_fallback_art();
         } else if(strcmp(picture, last_picture) != 0 && parse_base_url(base_url, &url)) {
             if(fetch_to_file(&url, token, picture)) {
                 uint16_t *decoded = (uint16_t *)malloc(sizeof(g_pixels));
-                if(decoded && decode_jpeg_to_rgb565(MEDIA_ART_PATH, decoded)) {
+                if(decoded && decode_image_to_rgb565(MEDIA_ART_PATH, decoded)) {
                     pthread_mutex_lock(&g_lock);
                     memcpy(g_pixels, decoded, sizeof(g_pixels));
                     pthread_mutex_unlock(&g_lock);
@@ -418,10 +645,13 @@ static void *worker_main(void *arg)
                     fprintf(stderr, "[media_art] fetched album art\n");
                 } else {
                     fprintf(stderr, "[media_art] album art decode failed\n");
+                    snprintf(last_picture, sizeof(last_picture), "%s", picture);
+                    publish_fallback_art();
                 }
                 free(decoded);
             } else {
                 fprintf(stderr, "[media_art] album art fetch failed\n");
+                publish_fallback_art();
             }
         }
 

@@ -2,7 +2,7 @@
 
 Authoritative source repository for the HA Squeezebox Controller project based on Logitech Jive hardware.
 
-Current release: `v0.9.0` — UX responsiveness milestone for the Phase B HA remote runtime.
+Current release: `v0.9.1` — Media artwork fix on top of the Phase B UX responsiveness milestone.
 
 ## Working Model
 
