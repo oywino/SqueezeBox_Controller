@@ -51,6 +51,7 @@ Verified Phase B UI/runtime checkpoint:
 - Sleep behavior is active: BAT sleeps after about 30 seconds idle; AC stays awake past 30 seconds; key/wheel/accelerometer activity wakes the screen.
 - Menu input/audio responsiveness is hardware-verified at `v0.8.12-phase-b-responsive-menu-audio`: input polling is threaded, menu wheel selection works without the forced redraw bottleneck, and feedback sound is stable.
 - Audio feedback stability is improved at `v0.8.13-phase-b-audio-rate-wheel-coalesce`: playback uses the verified supported 22.05 kHz stereo S16_LE mode and slow-scroll beeps no longer break up.
+- UX responsiveness milestone `v0.9.0` is released from `v0.8.25-uxresp-08-focus-only-nav`: wheel movement is accumulated and applied once per UI pump, HA WebSocket receive/parse work is off the UI thread, and the accepted focus-only navigation snapshot is the current good-enough runtime baseline.
 
 ## Exit criteria (Phase B done)
 
@@ -127,9 +128,9 @@ Verified Phase B UI/runtime checkpoint:
 - [ ] **Step 11. Service call pipeline**  
   Wire demo card actions to concrete HA services; success/error feedback; basic retries. REST action execution has been moved off the UI/input path into `ha_action_queue` at `v0.8.24-phase-b-ha-action-queue`.
 
-- [ ] **Step 12. Minimal demo UI (“one screen per card type” PoC)**  
+- [x] **Step 12. Minimal demo UI (“one screen per card type” PoC)**  
   Start with Light, Cover, Switch, and Media Player; wheel navigation; push/long-push actions; verify end-to-end loop.
-  First shell verified at `v0.8.8-phase-b-ui-shell-sleep`; responsive menu/audio behavior verified at `v0.8.12-phase-b-responsive-menu-audio`; Light, Cover, and Switch cards have approved first actions; Media Player card has the approved Jive-style now-playing layout with album art at `v0.8.22-phase-b-media-card-artwork`, Play/Pause behavior at `v0.8.23-phase-b-media-play-pause`, and volume keys at `v0.8.25-phase-b-media-volume-keys`.
+  First shell verified at `v0.8.8-phase-b-ui-shell-sleep`; responsive menu/audio behavior verified at `v0.8.12-phase-b-responsive-menu-audio`; Light, Cover, and Switch cards have approved first actions; Media Player card has the approved Jive-style now-playing layout with album art at `v0.8.22-phase-b-media-card-artwork`, Play/Pause behavior at `v0.8.23-phase-b-media-play-pause`, volume keys at `v0.8.25-phase-b-media-volume-keys`, and the accepted UX responsiveness milestone at `v0.9.0`.
 
 - [ ] **Step 13. Configuration loading**  
   Load small config for entity IDs + layout; allow reload on startup.

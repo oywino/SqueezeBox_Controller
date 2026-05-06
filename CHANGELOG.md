@@ -2,6 +2,18 @@
 
 ---
 
+## v0.9.0 — 2026-05-06
+
+- Released the UX responsiveness milestone from `codex/ux-responsiveness-v0.8.25`.
+- Reduced wheel-navigation resistance by replacing the former scroll gate with accumulated wheel movement and one bounded UI update per pump.
+- Moved Home Assistant WebSocket receive/parse work off the LVGL/UI path and into a dedicated receiver thread with queued UI-state application.
+- Fixed the full module build script so deployment builds include all current source files.
+- Added focused timing instrumentation during the responsiveness exercise; retained the verified good-enough snapshot and reverted the later LVGL/framebuffer instrumentation experiment that degraded rendering.
+- Final accepted runtime snapshot is `v0.8.25-uxresp-08-focus-only-nav` at commit `7c331aa`.
+- Built, deployed, and left running on Squeezebox controller `192.168.1.65`; user accepted this version as close enough to good enough for now.
+
+---
+
 ## v0.8.25-phase-b-media-volume-keys — 2026-05-05
 
 - Added Media-focused volume key actions for `media_player.squeezebox_boom`.

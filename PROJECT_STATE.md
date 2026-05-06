@@ -34,7 +34,7 @@ Rules:
 
 ---
 
-## Current status (artifact-synced 2026-04-27)
+## Current status (artifact-synced 2026-05-06)
 
 - LVGL apps run on `/dev/fb0` and read input events.
 - Active binaries live under `/mnt/storage/phase-a-lvgl/`.
@@ -73,6 +73,8 @@ Rules:
 - Media Player Play/Pause is hardware-verified at `v0.8.23-phase-b-media-play-pause`: the `||` key toggles `media_player.squeezebox_boom` when Media is focused, the upper-right now-playing icon follows HA `playing` state, and loaded media is full-screen-only while focus away returns the list to Light/Cover/Switch.
 - HA action queue responsiveness refactor is hardware-verified at `v0.8.24-phase-b-ha-action-queue`: REST service calls and targeted cover refreshes now run off the UI/input path, with existing Light/Switch/Cover/Media behavior preserved.
 - Media Player volume keys are hardware-approved at `v0.8.25-phase-b-media-volume-keys`: Volume Up/Down call HA default `media_player.volume_up`/`media_player.volume_down` for `media_player.squeezebox_boom` only when Media is focused.
+- UX responsiveness milestone `v0.9.0` is released and hardware-accepted as the current good-enough runtime baseline: wheel movement is accumulated and applied once per UI pump, HA WebSocket receive/parse work is off the UI thread, and focus-only navigation avoids full card refreshes when the visible card window does not change.
+- Current deployed/running runtime baseline is `v0.8.25-uxresp-08-focus-only-nav` / `v0.9.0` at commit `7c331aa`.
 - `build_incremental.sh` is available for future ARMv5 builds so unchanged modules are not recompiled for small source changes.
 - Verified Home Assistant base URL for current runtime/config is `http://192.168.1.8:8123`; startup REST state fetch logs `4/4 ok`.
 
@@ -117,7 +119,7 @@ Rules:
   
   First action verified: `switch.toggle` for `switch.ikea_power_plug` on rotary/select push. Remaining MVP actions are pending.
 
-- [ ] **Step 12. Minimal demo UI (PoC)** — pending.
+- [x] **Step 12. Minimal demo UI (PoC)** — Light, Cover, Switch, and Media Player card loop is hardware-verified through `v0.9.0`.
 
 - [ ] **Step 13. Configuration loading** — pending.
 
@@ -152,6 +154,8 @@ Rules:
 - v0.8.8 — Phase B UI shell, reusable long-press, and sleep behavior verified.
 - v0.8.12 — Responsive menu/audio correction verified.
 - v0.8.13 — Audio rate reduction and wheel coalescing verified.
+- v0.8.25 — Media Player volume keys verified.
+- v0.9.0 — UX responsiveness milestone accepted and released.
 
 ---
 

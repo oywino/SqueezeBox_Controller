@@ -6,6 +6,7 @@ These rules override chat memory. If there is any conflict, this file wins.
 
 - One change per iteration. Test/verify before next change.
 - This includes fixes/corrections: still one change at a time.
+- Every release must update `CHANGELOG.md`, `PROJECT_PLAN_phaseB.md`, `PROJECT_RULES.md`, `PROJECT_STATE.md`, and `README.md` before the release tag is created or moved.
 - After each verified change: update CHANGELOG + create snapshot.
 - When UI output changes, describe exactly what will be visible before running.
 - Approved graphical details are version-bound. Reverting to a pushed tag or release must restore every graphical detail exactly as it was in that version, unless the user explicitly approves a deviation.

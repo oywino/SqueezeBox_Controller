@@ -2,6 +2,8 @@
 
 Authoritative source repository for the HA Squeezebox Controller project based on Logitech Jive hardware.
 
+Current release: `v0.9.0` — UX responsiveness milestone for the Phase B HA remote runtime.
+
 ## Working Model
 
 - GitHub repository: [oywino/SqueezeBox_Controller](https://github.com/oywino/SqueezeBox_Controller)
@@ -18,6 +20,7 @@ The repository contains source, scripts, and control documents required to conti
 - Build, deploy, and run scripts
 - RosCard decision artifacts
 - Repository operations scripts under `scripts/`
+- Release control documents: `CHANGELOG.md`, `PROJECT_PLAN_phaseB.md`, `PROJECT_RULES.md`, `PROJECT_STATE.md`, and this `README.md`
 
 ## Excluded From Git History
 
