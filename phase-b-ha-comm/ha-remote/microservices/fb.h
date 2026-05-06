@@ -17,6 +17,8 @@ int  fb_text_strip_set(unsigned int slot,
                        uint32_t fg_hex,
                        uint32_t bg_hex);
 void fb_text_strip_disable(unsigned int slot);
+void fb_text_strip_set_blocked(int blocked);
+void fb_text_strip_set_occluder(int active, int x, int y, int w, int h);
 void lcd_wake(void);
 void lcd_sleep(void);
 

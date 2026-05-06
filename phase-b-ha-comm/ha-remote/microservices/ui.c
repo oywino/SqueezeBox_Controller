@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
@@ -42,7 +43,9 @@
 #define COVER_ANIM_COLOR 0xFFFFFF
 static int g_should_exit = 0;
 static int g_menu_visible = 0;
+static int g_menu_closing = 0;
 static int g_menu_selected = 0;
+static uint64_t g_menu_text_restore_after_ms = 0;
 static int g_card_top = 0;
 static int g_card_focus = 0;
 static int g_cover_motion = 0;
@@ -463,7 +466,10 @@ static void update_media_view(void)
   }
 
   lv_obj_clear_flag(g_media_view, LV_OBJ_FLAG_HIDDEN);
-  fb_text_strip_set(0, 8, TOP_H + 6, 170, 26, g_font_title, title, 0xEBF4FF, 0x16181E);
+  if(!g_menu_visible && !g_menu_closing &&
+     (g_menu_text_restore_after_ms == 0 || ms_now() >= g_menu_text_restore_after_ms)) {
+    fb_text_strip_set(0, 8, TOP_H + 6, 170, 26, g_font_title, title, 0xEBF4FF, 0x16181E);
+  }
   if(state && strcmp(state, "playing") == 0) {
     lv_obj_add_flag(g_media_play_icon, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(g_media_pause_icon, LV_OBJ_FLAG_HIDDEN);
@@ -473,7 +479,10 @@ static void update_media_view(void)
   }
 
   format_media_subtitle(subtitle, sizeof(subtitle), artist, album, channel);
-  fb_text_strip_set(1, 9, TOP_H + 39, 220, 20, g_font_state, subtitle, 0xAFC0D2, 0x16181E);
+  if(!g_menu_visible && !g_menu_closing &&
+     (g_menu_text_restore_after_ms == 0 || ms_now() >= g_menu_text_restore_after_ms)) {
+    fb_text_strip_set(1, 9, TOP_H + 39, 220, 20, g_font_state, subtitle, 0xAFC0D2, 0x16181E);
+  }
 
   fmt_time(have_position ? position : 0, elapsed, sizeof(elapsed), 0);
   fmt_time(have_duration && have_position ? duration - position : 0, remaining, sizeof(remaining), 1);
@@ -571,6 +580,16 @@ static void media_view_timer_cb(lv_timer_t *t)
 {
   (void)t;
   update_media_view();
+}
+
+static void menu_close_ready_cb(lv_anim_t *a)
+{
+  (void)a;
+  if(!g_menu_closing) return;
+  g_menu_visible = 0;
+  g_menu_closing = 0;
+  g_menu_text_restore_after_ms = ms_now() + 300;
+  fb_text_strip_set_occluder(0, 0, 0, 0, 0);
 }
 
 static void refresh_cards(void)
@@ -766,16 +785,27 @@ static void set_menu_x(void *obj, int32_t x)
 static void set_menu_visible(int visible)
 {
   if(!g_menu_panel) return;
-  g_menu_visible = visible ? 1 : 0;
+  if(visible) {
+    g_menu_visible = 1;
+    g_menu_closing = 0;
+    g_menu_text_restore_after_ms = UINT64_MAX;
+    fb_text_strip_set_occluder(1, 0, 0, SCREEN_W, SCREEN_H);
+    fb_text_strip_disable(0);
+    fb_text_strip_disable(1);
+  } else {
+    g_menu_closing = 1;
+    fb_text_strip_set_occluder(1, 0, 0, SCREEN_W, SCREEN_H);
+  }
 
   lv_anim_t anim;
   lv_anim_init(&anim);
   lv_anim_set_var(&anim, g_menu_panel);
   lv_anim_set_values(&anim,
                      lv_obj_get_x(g_menu_panel),
-                     g_menu_visible ? MENU_X_SHOWN : MENU_X_HIDDEN);
+                     visible ? MENU_X_SHOWN : MENU_X_HIDDEN);
   lv_anim_set_time(&anim, 180);
   lv_anim_set_exec_cb(&anim, set_menu_x);
+  lv_anim_set_ready_cb(&anim, menu_close_ready_cb);
   lv_anim_start(&anim);
 }
 
@@ -790,6 +820,7 @@ void ui_init(lv_group_t *grp)
 {
   g_should_exit = 0;
   g_menu_visible = 0;
+  g_menu_closing = 0;
   g_menu_selected = 0;
   g_card_top = 0;
   g_card_focus = 0;

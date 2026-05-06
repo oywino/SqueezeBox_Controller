@@ -48,6 +48,12 @@ static pthread_mutex_t g_text_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t g_text_thread;
 static int g_text_thread_running = 0;
 static int g_text_thread_started = 0;
+static int g_text_strips_blocked = 0;
+static int g_text_occluder_active = 0;
+static int g_text_occluder_x1 = 0;
+static int g_text_occluder_y1 = 0;
+static int g_text_occluder_x2 = -1;
+static int g_text_occluder_y2 = -1;
 static struct fb_text_strip g_text_strips[FB_TEXT_STRIP_COUNT];
 
 static uint64_t fb_ms_now(void)
@@ -61,6 +67,13 @@ static int area_intersects(int x1, int y1, int x2, int y2,
                            int rx1, int ry1, int rx2, int ry2)
 {
     return x1 <= rx2 && x2 >= rx1 && y1 <= ry2 && y2 >= ry1;
+}
+
+static int text_occluder_contains_locked(int x, int y)
+{
+    return g_text_occluder_active &&
+           x >= g_text_occluder_x1 && x <= g_text_occluder_x2 &&
+           y >= g_text_occluder_y1 && y <= g_text_occluder_y2;
 }
 
 static void draw_strip_to_fb(uint8_t *fb, const struct fb_text_strip *s)
@@ -83,7 +96,8 @@ static void draw_strip_to_fb(uint8_t *fb, const struct fb_text_strip *s)
             lv_color_t color = s->bg;
 
             if(sx < 0 || sx >= g_w) continue;
-            if(s->pixels && src_x >= 0 && src_x < s->text_w) {
+            if(text_occluder_contains_locked(sx, sy)) continue;
+            if(!g_text_strips_blocked && s->pixels && src_x >= 0 && src_x < s->text_w) {
                 color = s->pixels[(size_t)row * (size_t)s->text_w + (size_t)src_x];
             }
             dst = fb + (size_t)sy * (size_t)g_line_len + (size_t)sx * 2;
@@ -102,12 +116,13 @@ static lv_color_t text_strip_color_at_locked(int x, int y, int *hit)
 
         if(!s->enabled) continue;
         if(x < s->x || x >= s->x + s->w || y < s->y || y >= s->y + s->h) continue;
+        if(text_occluder_contains_locked(x, y)) continue;
 
         local_x = x - s->x;
         local_y = y - s->y;
         src_x = local_x - s->offset_x;
         *hit = 1;
-        if(s->pixels && src_x >= 0 && src_x < s->text_w) {
+        if(!g_text_strips_blocked && s->pixels && src_x >= 0 && src_x < s->text_w) {
             return s->pixels[(size_t)local_y * (size_t)s->text_w + (size_t)src_x];
         }
         return s->bg;
@@ -274,7 +289,7 @@ static void *text_strip_thread_main(void *arg)
         for(unsigned int i = 0; i < FB_TEXT_STRIP_COUNT; i++) {
             struct fb_text_strip *s = &g_text_strips[i];
 
-            if(!s->enabled) continue;
+            if(g_text_strips_blocked || !s->enabled) continue;
             if(s->active) {
                 if(s->pause_until_ms != 0 && now >= s->pause_until_ms) {
                     s->pause_until_ms = 0;
@@ -530,11 +545,59 @@ int fb_text_strip_set(unsigned int slot,
 
 void fb_text_strip_disable(unsigned int slot)
 {
+    int old_blocked;
+
     if(slot >= FB_TEXT_STRIP_COUNT) return;
 
+    pthread_mutex_lock(&g_fb_lock);
     pthread_mutex_lock(&g_text_lock);
-    g_text_strips[slot].enabled = 0;
-    g_text_strips[slot].dirty = 0;
+    if(g_text_strips[slot].enabled) {
+        old_blocked = g_text_strips_blocked;
+        g_text_strips_blocked = 1;
+        draw_strip_to_fb(g_fb0, &g_text_strips[slot]);
+        draw_strip_to_fb(g_fb1, &g_text_strips[slot]);
+        g_text_strips_blocked = old_blocked;
+        g_text_strips[slot].enabled = 0;
+        g_text_strips[slot].dirty = 0;
+    }
+    pthread_mutex_unlock(&g_text_lock);
+    pthread_mutex_unlock(&g_fb_lock);
+}
+
+void fb_text_strip_set_blocked(int blocked)
+{
+    unsigned int i;
+
+    pthread_mutex_lock(&g_fb_lock);
+    pthread_mutex_lock(&g_text_lock);
+    g_text_strips_blocked = blocked ? 1 : 0;
+    for(i = 0; i < FB_TEXT_STRIP_COUNT; i++) {
+        struct fb_text_strip *s = &g_text_strips[i];
+        if(!s->enabled) continue;
+        draw_strip_to_fb(g_fb0, s);
+        draw_strip_to_fb(g_fb1, s);
+        s->dirty = 0;
+    }
+    pthread_mutex_unlock(&g_text_lock);
+    pthread_mutex_unlock(&g_fb_lock);
+}
+
+void fb_text_strip_set_occluder(int active, int x, int y, int w, int h)
+{
+    pthread_mutex_lock(&g_text_lock);
+    if(active && w > 0 && h > 0) {
+        g_text_occluder_active = 1;
+        g_text_occluder_x1 = x;
+        g_text_occluder_y1 = y;
+        g_text_occluder_x2 = x + w - 1;
+        g_text_occluder_y2 = y + h - 1;
+    } else {
+        g_text_occluder_active = 0;
+        g_text_occluder_x1 = 0;
+        g_text_occluder_y1 = 0;
+        g_text_occluder_x2 = -1;
+        g_text_occluder_y2 = -1;
+    }
     pthread_mutex_unlock(&g_text_lock);
 }
 

@@ -2,6 +2,16 @@
 
 ---
 
+## v0.9.4 — 2026-05-06
+
+- Fixed Home menu interaction over the full-screen Media view.
+- Media headline text strips are now cancelled when the Home menu opens and are not restored while the menu is visible or closing.
+- Added framebuffer text-strip occlusion support so strip compositing can be suppressed while an overlay owns the screen.
+- Restored Media headline strips only after the menu close animation has completed and a later media update cycle has repainted the underlying view, preventing headline pixels from appearing through or over the slide-out menu.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified Home menu open/close behavior over the scrolling Media view as correct.
+
+---
+
 ## v0.9.3 — 2026-05-06
 
 - Restored the full-screen Media subtitle row metadata: the second headline row now displays `media_artist` plus `media_channel` for radio streams, or `media_artist` plus `media_album_name` for album playback.

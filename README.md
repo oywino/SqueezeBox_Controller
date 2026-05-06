@@ -2,7 +2,7 @@
 
 Authoritative source repository for the HA Squeezebox Controller project based on Logitech Jive hardware.
 
-Current release: `v0.9.3` — Restored Media artist/channel/album subtitle metadata on the framebuffer headline scroller.
+Current release: `v0.9.4` — Correct Home menu overlay behavior over framebuffer-scrolled Media text.
 
 ## Working Model
 
@@ -57,5 +57,6 @@ powershell -File .\scripts\create_backup_bundle.ps1
 - The framebuffer flush callback composites active text strips while copying LVGL draw-buffer pixels into both framebuffer pages, preventing blank intermediate LVGL headline frames from reaching the display.
 - A lightweight framebuffer-layer worker advances the strip offsets for smooth scrolling without involving LVGL object invalidation or `lv_timer_handler()` for each marquee step.
 - The second Media headline row is populated from `media_artist` plus `media_channel` for radio streams, or `media_artist` plus `media_album_name` for album playback.
+- When the Home menu overlays the Media view, framebuffer text strips are cancelled and held back until after the menu has fully closed, so scrolling text cannot bleed through the menu.
 
 See `docs/repo-layout.md`, `docs/build-environment.md`, and `docs/release-process.md` for the operating model.

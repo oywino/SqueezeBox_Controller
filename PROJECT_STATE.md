@@ -77,7 +77,8 @@ Rules:
 - Media artwork behavior is hardware-verified at `v0.9.1`: loaded Media focus goes directly to full-screen now-playing, artwork supports JPEG/progressive JPEG/PNG, and the built-in fallback radio image is used only when real art is unavailable or undecodable.
 - Media headline scrolling is hardware-verified at `v0.9.2`: the full-screen Media title and album rows use framebuffer-backed cached text strips instead of LVGL label animation. The strip overlay is composited during framebuffer flush and animated by the framebuffer layer, giving correct repeat-loop behavior, smooth pace, and no blank flashing before or during loops.
 - Media subtitle metadata is hardware-verified at `v0.9.3`: the second full-screen Media headline row displays `media_artist` plus `media_channel` for radio or `media_artist` plus `media_album_name` for albums, using the same framebuffer scrolling path.
-- Current deployed/running runtime baseline is `v0.9.3`.
+- Home menu overlay behavior over full-screen Media is hardware-verified at `v0.9.4`: opening Home cancels active framebuffer text strips, menu navigation remains clean, and closing Home removes the menu before Media headline strips are restored.
+- Current deployed/running runtime baseline is `v0.9.4`.
 - `build_incremental.sh` is available for future ARMv5 builds so unchanged modules are not recompiled for small source changes.
 - Verified Home Assistant base URL for current runtime/config is `http://192.168.1.8:8123`; startup REST state fetch logs `4/4 ok`.
 
@@ -122,7 +123,7 @@ Rules:
   
   First action verified: `switch.toggle` for `switch.ikea_power_plug` on rotary/select push. Remaining MVP actions are pending.
 
-- [x] **Step 12. Minimal demo UI (PoC)** — Light, Cover, Switch, and Media Player card loop is hardware-verified through `v0.9.3`.
+- [x] **Step 12. Minimal demo UI (PoC)** — Light, Cover, Switch, and Media Player card loop is hardware-verified through `v0.9.4`.
 
 - [ ] **Step 13. Configuration loading** — pending.
 
@@ -162,6 +163,7 @@ Rules:
 - v0.9.1 — Media card transition and JPEG/PNG radio artwork handling verified.
 - v0.9.2 — Framebuffer-backed Media headline scrolling verified.
 - v0.9.3 — Media artist/channel/album subtitle row restored and verified.
+- v0.9.4 — Home menu overlay behavior over scrolling Media text verified.
 
 ---
 
