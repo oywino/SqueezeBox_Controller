@@ -2,6 +2,17 @@
 
 ---
 
+## v0.9.2 — 2026-05-06
+
+- Implemented a framebuffer-backed text-strip overlay architecture for full-screen Media headline rows.
+- Moved title and album marquee rendering out of LVGL label/object animation and into `fb.c`, where text is pre-rendered into cached RGB565 strips and shifted inside fixed clipped rectangles.
+- Added reusable `fb_text_strip_set()` / `fb_text_strip_disable()` APIs with dedicated strip slots, cached glyph rendering through the existing LVGL font data, RGB565 compositing, 5 second dwell at the filled position, and smooth 50 ms strip stepping.
+- Integrated the overlay with the framebuffer flush path so LVGL never displays a blank intermediate headline row: strip pixels are composed into `/dev/fb0` during LVGL flush and also updated by the strip worker for animation frames.
+- Hid the old LVGL headline labels and kept them only as layout anchors; removed the obsolete UI marquee pump from the main loop.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified the scroll pace, repeat-loop behavior, and flash-free rendering as correct.
+
+---
+
 ## v0.9.1 — 2026-05-06
 
 - Fixed loaded Media navigation so the minimal `Squeezebox Boom / Nothing` card is suppressed when the full-screen now-playing view should be shown.

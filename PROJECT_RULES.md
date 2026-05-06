@@ -48,7 +48,7 @@ scp -O \
 
 ## Notes
 
-- Release documentation is currently synchronized through `v0.9.1`.
+- Release documentation is currently synchronized through `v0.9.2`.
 - If line endings break tools (e.g., patch/python shebang issues), normalize in the build container and document the fix in CHANGELOG.
 
 ### Module scope contracts

@@ -75,7 +75,8 @@ Rules:
 - Media Player volume keys are hardware-approved at `v0.8.25-phase-b-media-volume-keys`: Volume Up/Down call HA default `media_player.volume_up`/`media_player.volume_down` for `media_player.squeezebox_boom` only when Media is focused.
 - UX responsiveness milestone `v0.9.0` is released and hardware-accepted as the current good-enough runtime baseline: wheel movement is accumulated and applied once per UI pump, HA WebSocket receive/parse work is off the UI thread, and focus-only navigation avoids full card refreshes when the visible card window does not change.
 - Media artwork behavior is hardware-verified at `v0.9.1`: loaded Media focus goes directly to full-screen now-playing, artwork supports JPEG/progressive JPEG/PNG, and the built-in fallback radio image is used only when real art is unavailable or undecodable.
-- Current deployed/running runtime baseline is `v0.9.1`.
+- Media headline scrolling is hardware-verified at `v0.9.2`: the full-screen Media title and album rows use framebuffer-backed cached text strips instead of LVGL label animation. The strip overlay is composited during framebuffer flush and animated by the framebuffer layer, giving correct repeat-loop behavior, smooth pace, and no blank flashing before or during loops.
+- Current deployed/running runtime baseline is `v0.9.2`.
 - `build_incremental.sh` is available for future ARMv5 builds so unchanged modules are not recompiled for small source changes.
 - Verified Home Assistant base URL for current runtime/config is `http://192.168.1.8:8123`; startup REST state fetch logs `4/4 ok`.
 
@@ -120,7 +121,7 @@ Rules:
   
   First action verified: `switch.toggle` for `switch.ikea_power_plug` on rotary/select push. Remaining MVP actions are pending.
 
-- [x] **Step 12. Minimal demo UI (PoC)** — Light, Cover, Switch, and Media Player card loop is hardware-verified through `v0.9.0`.
+- [x] **Step 12. Minimal demo UI (PoC)** — Light, Cover, Switch, and Media Player card loop is hardware-verified through `v0.9.2`.
 
 - [ ] **Step 13. Configuration loading** — pending.
 
@@ -158,6 +159,7 @@ Rules:
 - v0.8.25 — Media Player volume keys verified.
 - v0.9.0 — UX responsiveness milestone accepted and released.
 - v0.9.1 — Media card transition and JPEG/PNG radio artwork handling verified.
+- v0.9.2 — Framebuffer-backed Media headline scrolling verified.
 
 ---
 

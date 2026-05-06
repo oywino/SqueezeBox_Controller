@@ -10,6 +10,7 @@
 #include "status_cache.h"
 #include "ha_ws.h"
 #include "media_art.h"
+#include "fb.h"
 #include "assets/jive_assets.h"
 #include "src/draw/lv_draw_triangle.h"
 #include "src/extra/libs/tiny_ttf/lv_tiny_ttf.h"
@@ -39,7 +40,6 @@
 #define COVER_ANIM_GAP_MS 250
 #define COVER_ANIM_CYCLE_MS (COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS + COVER_ANIM_FIRST_MS + COVER_ANIM_GAP_MS)
 #define COVER_ANIM_COLOR 0xFFFFFF
-
 static int g_should_exit = 0;
 static int g_menu_visible = 0;
 static int g_menu_selected = 0;
@@ -62,9 +62,11 @@ static lv_obj_t *g_cover_pause[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_cover_right_1[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_cover_right_2[CARD_VISIBLE_COUNT] = { NULL };
 static lv_obj_t *g_media_view = NULL;
+static lv_obj_t *g_media_title_box = NULL;
 static lv_obj_t *g_media_title = NULL;
 static lv_obj_t *g_media_pause_icon = NULL;
 static lv_obj_t *g_media_play_icon = NULL;
+static lv_obj_t *g_media_album_box = NULL;
 static lv_obj_t *g_media_artist_album = NULL;
 static lv_obj_t *g_media_elapsed = NULL;
 static lv_obj_t *g_media_remaining = NULL;
@@ -170,6 +172,20 @@ static lv_obj_t *make_label(lv_obj_t *parent, const char *text, uint32_t color)
   lv_label_set_text(label, text);
   lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
   return label;
+}
+
+static lv_obj_t *make_clip_box(lv_obj_t *parent, lv_coord_t x, lv_coord_t y,
+                               lv_coord_t w, lv_coord_t h)
+{
+  lv_obj_t *obj = lv_obj_create(parent);
+  lv_obj_remove_style_all(obj);
+  lv_obj_set_pos(obj, x, y);
+  lv_obj_set_size(obj, w, h);
+  lv_obj_set_style_bg_color(obj, lv_color_hex(0x16181E), 0);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
+  lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_clear_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+  return obj;
 }
 
 static void cover_triangle_draw_cb(lv_event_t *e)
@@ -403,7 +419,6 @@ static void update_media_view(void)
   const char *entity_id = "media_player.squeezebox_boom";
   const char *state = ha_rest_get_cached_state(entity_id);
   const char *title = ha_rest_get_cached_media_title(entity_id);
-  const char *artist = ha_rest_get_cached_media_artist(entity_id);
   const char *album = ha_rest_get_cached_media_album(entity_id);
   int selected = g_card_top + g_card_focus;
   int position = 0;
@@ -412,7 +427,6 @@ static void update_media_view(void)
   int have_duration = ha_rest_get_cached_media_duration(entity_id, &duration);
   char elapsed[16];
   char remaining[16];
-  char artist_album[192];
   int fill_w = 0;
   unsigned long art_version;
   const lv_img_dsc_t *art_image;
@@ -420,12 +434,14 @@ static void update_media_view(void)
   if(!g_media_view) return;
 
   if(selected != 3 || !media_state_loaded(state) || !title || !*title) {
+    fb_text_strip_disable(0);
+    fb_text_strip_disable(1);
     lv_obj_add_flag(g_media_view, LV_OBJ_FLAG_HIDDEN);
     return;
   }
 
   lv_obj_clear_flag(g_media_view, LV_OBJ_FLAG_HIDDEN);
-  lv_label_set_text(g_media_title, title);
+  fb_text_strip_set(0, 8, TOP_H + 6, 170, 26, g_font_title, title, 0xEBF4FF, 0x16181E);
   if(state && strcmp(state, "playing") == 0) {
     lv_obj_add_flag(g_media_play_icon, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(g_media_pause_icon, LV_OBJ_FLAG_HIDDEN);
@@ -434,11 +450,7 @@ static void update_media_view(void)
     lv_obj_add_flag(g_media_pause_icon, LV_OBJ_FLAG_HIDDEN);
   }
 
-  if(artist && album) snprintf(artist_album, sizeof(artist_album), "%s • %s", artist, album);
-  else if(artist) snprintf(artist_album, sizeof(artist_album), "%s", artist);
-  else if(album) snprintf(artist_album, sizeof(artist_album), "%s", album);
-  else snprintf(artist_album, sizeof(artist_album), "%s", "");
-  lv_label_set_text(g_media_artist_album, artist_album);
+  fb_text_strip_set(1, 9, TOP_H + 39, 220, 20, g_font_state, album ? album : "", 0xAFC0D2, 0x16181E);
 
   fmt_time(have_position ? position : 0, elapsed, sizeof(elapsed), 0);
   fmt_time(have_duration && have_position ? duration - position : 0, remaining, sizeof(remaining), 1);
@@ -681,12 +693,13 @@ static void build_media_view(lv_obj_t *scr)
   g_media_view = make_panel(scr, 0, TOP_H, SCREEN_W, SCREEN_H - TOP_H, 0x16181E, 0);
   lv_obj_add_flag(g_media_view, LV_OBJ_FLAG_HIDDEN);
 
-  g_media_title = make_label(g_media_view, "", 0xEBF4FF);
+  g_media_title_box = make_clip_box(g_media_view, 8, 6, 170, 26);
+  g_media_title = make_label(g_media_title_box, "", 0xEBF4FF);
   set_label_font(g_media_title, g_font_title);
   lv_obj_set_width(g_media_title, 170);
   lv_label_set_long_mode(g_media_title, LV_LABEL_LONG_CLIP);
-  lv_obj_align(g_media_title, LV_ALIGN_TOP_LEFT, 8, 6);
-
+  lv_obj_set_pos(g_media_title, 0, 0);
+  lv_obj_add_flag(g_media_title, LV_OBJ_FLAG_HIDDEN);
   g_media_pause_icon = make_small_pause_symbol(g_media_view, 0xEBF4FF);
   lv_obj_align(g_media_pause_icon, LV_ALIGN_TOP_RIGHT, -15, 17);
 
@@ -699,12 +712,13 @@ static void build_media_view(lv_obj_t *scr)
   lv_obj_align(g_media_play_icon, LV_ALIGN_TOP_RIGHT, -16, 18);
   lv_obj_add_flag(g_media_play_icon, LV_OBJ_FLAG_HIDDEN);
 
-  g_media_artist_album = make_label(g_media_view, "", 0xAFC0D2);
+  g_media_album_box = make_clip_box(g_media_view, 9, 39, 220, 20);
+  g_media_artist_album = make_label(g_media_album_box, "", 0xAFC0D2);
   set_label_font(g_media_artist_album, g_font_state);
   lv_obj_set_width(g_media_artist_album, 220);
   lv_label_set_long_mode(g_media_artist_album, LV_LABEL_LONG_CLIP);
-  lv_obj_align(g_media_artist_album, LV_ALIGN_TOP_LEFT, 9, 39);
-
+  lv_obj_set_pos(g_media_artist_album, 0, 0);
+  lv_obj_add_flag(g_media_artist_album, LV_OBJ_FLAG_HIDDEN);
   g_media_elapsed = make_label(g_media_view, "0:00", 0xEBF4FF);
   set_label_font(g_media_elapsed, g_font_small);
   lv_obj_align(g_media_elapsed, LV_ALIGN_TOP_LEFT, 9, 65);
@@ -757,9 +771,11 @@ void ui_init(lv_group_t *grp)
   g_card_top = 0;
   g_card_focus = 0;
   g_media_view = NULL;
+  g_media_title_box = NULL;
   g_media_title = NULL;
   g_media_pause_icon = NULL;
   g_media_play_icon = NULL;
+  g_media_album_box = NULL;
   g_media_artist_album = NULL;
   g_media_elapsed = NULL;
   g_media_remaining = NULL;

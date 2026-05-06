@@ -2,7 +2,7 @@
 
 Authoritative source repository for the HA Squeezebox Controller project based on Logitech Jive hardware.
 
-Current release: `v0.9.1` — Media artwork fix on top of the Phase B UX responsiveness milestone.
+Current release: `v0.9.2` — Framebuffer-backed Media headline scrolling on top of the Phase B UX responsiveness milestone.
 
 ## Working Model
 
@@ -48,5 +48,13 @@ powershell -File .\scripts\create_backup_bundle.ps1
 - Container entrypoint is defined in `docker-compose.yaml`.
 - Current Phase B build expects `/workspace/output/host/bin` to provide the Buildroot toolchain.
 - `/workspace/buildroot` and `/workspace/output` remain external dependencies and are not mirrored into this repository.
+
+## Current UI Rendering Architecture
+
+- LVGL still owns the normal screen tree, card layout, input focus rendering, status bar, progress bar, playback icons, and album-art image object.
+- The full-screen Media title and album headline rows now use framebuffer-backed text strips instead of LVGL label scrolling.
+- `microservices/fb.c` pre-renders headline text through the existing LVGL font data into cached RGB565 strips, then clips and shifts those strips inside fixed row rectangles.
+- The framebuffer flush callback composites active text strips while copying LVGL draw-buffer pixels into both framebuffer pages, preventing blank intermediate LVGL headline frames from reaching the display.
+- A lightweight framebuffer-layer worker advances the strip offsets for smooth scrolling without involving LVGL object invalidation or `lv_timer_handler()` for each marquee step.
 
 See `docs/repo-layout.md`, `docs/build-environment.md`, and `docs/release-process.md` for the operating model.

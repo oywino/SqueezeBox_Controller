@@ -23,7 +23,7 @@ void ui_cover_note_command(const char *entity_id, const char *command);
 void ui_set_cover_refresh_callback(void (*refresh)(void));
 const char *ui_focused_card_entity_id(void);
 
-/* Backend → UI bridge for HA status updates. */
+/* Backend -> UI bridge for HA status updates. */
 void ui_status_set(const char *s, int connected, int have_states);
 
 /* Show exit screen. */
