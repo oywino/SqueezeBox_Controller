@@ -14,6 +14,7 @@ typedef struct {
     char media_title[96];
     char media_artist[96];
     char media_album[96];
+    char media_channel[96];
     char media_picture[256];
     int media_position;
     int media_duration;
@@ -249,6 +250,7 @@ static ha_rest_cached_state_t *ha_rest_cache_slot(const char *entity_id)
     g_states[g_state_count].media_title[0] = '\0';
     g_states[g_state_count].media_artist[0] = '\0';
     g_states[g_state_count].media_album[0] = '\0';
+    g_states[g_state_count].media_channel[0] = '\0';
     g_states[g_state_count].media_picture[0] = '\0';
     g_states[g_state_count].media_position = 0;
     g_states[g_state_count].media_duration = 0;
@@ -273,6 +275,7 @@ static int ha_rest_fetch_entity(const ha_rest_url_t *url,
     char media_title[96];
     char media_artist[96];
     char media_album[96];
+    char media_channel[96];
     char media_picture[256];
     int position;
     int media_position;
@@ -347,6 +350,11 @@ static int ha_rest_fetch_entity(const ha_rest_url_t *url,
             snprintf(slot->media_album, sizeof(slot->media_album), "%s", media_album);
         } else {
             slot->media_album[0] = '\0';
+        }
+        if (ha_rest_extract_json_string(response, "media_channel", media_channel, sizeof(media_channel))) {
+            snprintf(slot->media_channel, sizeof(slot->media_channel), "%s", media_channel);
+        } else {
+            slot->media_channel[0] = '\0';
         }
         if (ha_rest_extract_json_string(response, "entity_picture", media_picture, sizeof(media_picture))) {
             snprintf(slot->media_picture, sizeof(slot->media_picture), "%s", media_picture);
@@ -593,6 +601,22 @@ const char *ha_rest_get_cached_media_album(const char *entity_id)
     return NULL;
 }
 
+const char *ha_rest_get_cached_media_channel(const char *entity_id)
+{
+    size_t i;
+
+    if (!entity_id) {
+        return NULL;
+    }
+
+    for (i = 0; i < g_state_count; i++) {
+        if (g_states[i].valid && strcmp(g_states[i].entity_id, entity_id) == 0) {
+            return g_states[i].media_channel[0] ? g_states[i].media_channel : NULL;
+        }
+    }
+    return NULL;
+}
+
 int ha_rest_get_cached_media_position(const char *entity_id, int *position)
 {
     size_t i;
@@ -740,6 +764,9 @@ static void set_cached_string_field(const char *entity_id, const char *value, in
     } else if (field == 1) {
         dest = slot->media_album;
         dest_size = sizeof(slot->media_album);
+    } else if (field == 2) {
+        dest = slot->media_channel;
+        dest_size = sizeof(slot->media_channel);
     } else {
         dest = slot->media_picture;
         dest_size = sizeof(slot->media_picture);
@@ -764,9 +791,14 @@ void ha_rest_set_cached_media_album(const char *entity_id, const char *album)
     set_cached_string_field(entity_id, album, 1);
 }
 
+void ha_rest_set_cached_media_channel(const char *entity_id, const char *channel)
+{
+    set_cached_string_field(entity_id, channel, 2);
+}
+
 void ha_rest_set_cached_media_picture(const char *entity_id, const char *picture)
 {
-    set_cached_string_field(entity_id, picture, 2);
+    set_cached_string_field(entity_id, picture, 3);
 }
 
 void ha_rest_set_cached_media_position(const char *entity_id, int position)

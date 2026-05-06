@@ -47,11 +47,13 @@ typedef struct {
   char media_title[96];
   char media_artist[96];
   char media_album[96];
+  char media_channel[96];
   char media_picture[256];
   int is_media;
   int have_media_title;
   int have_media_artist;
   int have_media_album;
+  int have_media_channel;
   int have_media_picture;
   int media_position;
   int have_media_position;
@@ -418,6 +420,7 @@ static int parse_state_changed(const char *msg, ha_state_update_t *update)
   char media_title[96];
   char media_artist[96];
   char media_album[96];
+  char media_channel[96];
   char media_picture[256];
   const char *new_state;
   int position;
@@ -458,6 +461,10 @@ static int parse_state_changed(const char *msg, ha_state_update_t *update)
   if(json_extract_string_after(new_state, "media_album_name", media_album, sizeof(media_album))) {
     snprintf(update->media_album, sizeof(update->media_album), "%s", media_album);
     update->have_media_album = 1;
+  }
+  if(json_extract_string_after(new_state, "media_channel", media_channel, sizeof(media_channel))) {
+    snprintf(update->media_channel, sizeof(update->media_channel), "%s", media_channel);
+    update->have_media_channel = 1;
   }
   if(json_extract_string_after(new_state, "entity_picture", media_picture, sizeof(media_picture))) {
     snprintf(update->media_picture, sizeof(update->media_picture), "%s", media_picture);
@@ -566,14 +573,21 @@ static void apply_state_update(const ha_state_update_t *update)
 
   ha_rest_set_cached_state(update->entity_id, update->state);
   if(update->is_media) {
-    ha_rest_set_cached_media_title(update->entity_id,
-                                   update->have_media_title ? update->media_title : NULL);
-    ha_rest_set_cached_media_artist(update->entity_id,
-                                    update->have_media_artist ? update->media_artist : NULL);
-    ha_rest_set_cached_media_album(update->entity_id,
-                                   update->have_media_album ? update->media_album : NULL);
-    ha_rest_set_cached_media_picture(update->entity_id,
-                                     update->have_media_picture ? update->media_picture : NULL);
+    if(update->have_media_title) {
+      ha_rest_set_cached_media_title(update->entity_id, update->media_title);
+    }
+    if(update->have_media_artist) {
+      ha_rest_set_cached_media_artist(update->entity_id, update->media_artist);
+    }
+    if(update->have_media_album) {
+      ha_rest_set_cached_media_album(update->entity_id, update->media_album);
+    }
+    if(update->have_media_channel) {
+      ha_rest_set_cached_media_channel(update->entity_id, update->media_channel);
+    }
+    if(update->have_media_picture) {
+      ha_rest_set_cached_media_picture(update->entity_id, update->media_picture);
+    }
   }
   if(update->have_media_position) {
     ha_rest_set_cached_media_position(update->entity_id, update->media_position);

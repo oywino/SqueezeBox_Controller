@@ -2,7 +2,7 @@
 
 Authoritative source repository for the HA Squeezebox Controller project based on Logitech Jive hardware.
 
-Current release: `v0.9.2` — Framebuffer-backed Media headline scrolling on top of the Phase B UX responsiveness milestone.
+Current release: `v0.9.3` — Restored Media artist/channel/album subtitle metadata on the framebuffer headline scroller.
 
 ## Working Model
 
@@ -56,5 +56,6 @@ powershell -File .\scripts\create_backup_bundle.ps1
 - `microservices/fb.c` pre-renders headline text through the existing LVGL font data into cached RGB565 strips, then clips and shifts those strips inside fixed row rectangles.
 - The framebuffer flush callback composites active text strips while copying LVGL draw-buffer pixels into both framebuffer pages, preventing blank intermediate LVGL headline frames from reaching the display.
 - A lightweight framebuffer-layer worker advances the strip offsets for smooth scrolling without involving LVGL object invalidation or `lv_timer_handler()` for each marquee step.
+- The second Media headline row is populated from `media_artist` plus `media_channel` for radio streams, or `media_artist` plus `media_album_name` for album playback.
 
 See `docs/repo-layout.md`, `docs/build-environment.md`, and `docs/release-process.md` for the operating model.

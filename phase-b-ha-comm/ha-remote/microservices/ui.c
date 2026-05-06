@@ -297,6 +297,25 @@ static int media_loaded_now(void)
   return media_state_loaded(state) && title && *title;
 }
 
+static void format_media_subtitle(char *out, size_t out_size,
+                                  const char *artist,
+                                  const char *album,
+                                  const char *channel)
+{
+  const char *context = channel && *channel ? channel : album;
+
+  if(!out || out_size == 0) return;
+  if(artist && *artist && context && *context) {
+    snprintf(out, out_size, "%s - %s", artist, context);
+  } else if(artist && *artist) {
+    snprintf(out, out_size, "%s", artist);
+  } else if(context && *context) {
+    snprintf(out, out_size, "%s", context);
+  } else {
+    out[0] = '\0';
+  }
+}
+
 static void set_obj_hidden(lv_obj_t *obj, int hidden)
 {
   if(!obj) return;
@@ -419,7 +438,9 @@ static void update_media_view(void)
   const char *entity_id = "media_player.squeezebox_boom";
   const char *state = ha_rest_get_cached_state(entity_id);
   const char *title = ha_rest_get_cached_media_title(entity_id);
+  const char *artist = ha_rest_get_cached_media_artist(entity_id);
   const char *album = ha_rest_get_cached_media_album(entity_id);
+  const char *channel = ha_rest_get_cached_media_channel(entity_id);
   int selected = g_card_top + g_card_focus;
   int position = 0;
   int duration = 0;
@@ -427,6 +448,7 @@ static void update_media_view(void)
   int have_duration = ha_rest_get_cached_media_duration(entity_id, &duration);
   char elapsed[16];
   char remaining[16];
+  char subtitle[224];
   int fill_w = 0;
   unsigned long art_version;
   const lv_img_dsc_t *art_image;
@@ -450,7 +472,8 @@ static void update_media_view(void)
     lv_obj_add_flag(g_media_pause_icon, LV_OBJ_FLAG_HIDDEN);
   }
 
-  fb_text_strip_set(1, 9, TOP_H + 39, 220, 20, g_font_state, album ? album : "", 0xAFC0D2, 0x16181E);
+  format_media_subtitle(subtitle, sizeof(subtitle), artist, album, channel);
+  fb_text_strip_set(1, 9, TOP_H + 39, 220, 20, g_font_state, subtitle, 0xAFC0D2, 0x16181E);
 
   fmt_time(have_position ? position : 0, elapsed, sizeof(elapsed), 0);
   fmt_time(have_duration && have_position ? duration - position : 0, remaining, sizeof(remaining), 1);

@@ -54,6 +54,7 @@ Verified Phase B UI/runtime checkpoint:
 - UX responsiveness milestone `v0.9.0` is released from `v0.8.25-uxresp-08-focus-only-nav`: wheel movement is accumulated and applied once per UI pump, HA WebSocket receive/parse work is off the UI thread, and the accepted focus-only navigation snapshot is the current good-enough runtime baseline.
 - Media now-playing artwork behavior is corrected at `v0.9.1`: loaded Media focus goes directly to the full-screen view, and fetched artwork supports JPEG, progressive JPEG, and PNG with a built-in radio fallback image.
 - Media headline scrolling architecture is corrected at `v0.9.2`: full-screen title/album marquee text is no longer animated as LVGL labels. It is rendered as cached RGB565 text strips in the framebuffer layer and composited into the display flush path, giving smooth Jive-like scrolling without blank flashes.
+- Media subtitle metadata is restored at `v0.9.3`: the second full-screen headline row uses artist plus radio channel or album name and scrolls through the same framebuffer text-strip path.
 
 ## Exit criteria (Phase B done)
 
@@ -132,7 +133,7 @@ Verified Phase B UI/runtime checkpoint:
 
 - [x] **Step 12. Minimal demo UI (“one screen per card type” PoC)**  
   Start with Light, Cover, Switch, and Media Player; wheel navigation; push/long-push actions; verify end-to-end loop.
-  First shell verified at `v0.8.8-phase-b-ui-shell-sleep`; responsive menu/audio behavior verified at `v0.8.12-phase-b-responsive-menu-audio`; Light, Cover, and Switch cards have approved first actions; Media Player card has the approved Jive-style now-playing layout with album art at `v0.8.22-phase-b-media-card-artwork`, Play/Pause behavior at `v0.8.23-phase-b-media-play-pause`, volume keys at `v0.8.25-phase-b-media-volume-keys`, the accepted UX responsiveness milestone at `v0.9.0`, corrected radio artwork handling at `v0.9.1`, and framebuffer-backed now-playing headline scrolling at `v0.9.2`.
+  First shell verified at `v0.8.8-phase-b-ui-shell-sleep`; responsive menu/audio behavior verified at `v0.8.12-phase-b-responsive-menu-audio`; Light, Cover, and Switch cards have approved first actions; Media Player card has the approved Jive-style now-playing layout with album art at `v0.8.22-phase-b-media-card-artwork`, Play/Pause behavior at `v0.8.23-phase-b-media-play-pause`, volume keys at `v0.8.25-phase-b-media-volume-keys`, the accepted UX responsiveness milestone at `v0.9.0`, corrected radio artwork handling at `v0.9.1`, framebuffer-backed now-playing headline scrolling at `v0.9.2`, and restored artist/channel/album subtitle metadata at `v0.9.3`.
 
 - [ ] **Step 13. Configuration loading**  
   Load small config for entity IDs + layout; allow reload on startup.

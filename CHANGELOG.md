@@ -2,6 +2,15 @@
 
 ---
 
+## v0.9.3 — 2026-05-06
+
+- Restored the full-screen Media subtitle row metadata: the second headline row now displays `media_artist` plus `media_channel` for radio streams, or `media_artist` plus `media_album_name` for album playback.
+- Added `media_channel` to the REST/WebSocket media metadata cache and preserved existing cached metadata when HA state-change events omit optional media attributes.
+- Kept the subtitle row on the verified framebuffer text-strip renderer, so overflow scrolls with the same smooth loop behavior as the title row.
+- Built and deployed to Squeezebox controller `192.168.1.65`; user verified the second line displays correctly.
+
+---
+
 ## v0.9.2 — 2026-05-06
 
 - Implemented a framebuffer-backed text-strip overlay architecture for full-screen Media headline rows.
